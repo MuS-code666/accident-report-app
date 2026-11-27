@@ -72,3 +72,28 @@ def test_entity_without_relation_is_unplaced():
     spec.entities.append(spec.entities[2].model_copy(update={"id": "x", "label": "不明な物"}))
     s1 = layout(spec)[0]
     assert "x" in s1.unplaced
+
+
+def test_dependents_follow_when_contact_moves_the_vehicle():
+    spec = forklift_spec()
+    spec.entities.append(spec.entities[0].model_copy(update={"id": "guide", "kind": "誘導員", "label": "誘導員"}))
+    spec.scenes[1].relations.append(spec.scenes[0].relations[0].model_copy(
+        update={"subject": "guide", "reference": "fl", "direction": "右", "distance": "近い"}))
+    s2 = layout(spec)[1]
+    fl, g = s2.poses["fl"], s2.poses["guide"]
+    fx, fy = vec(fl.heading)
+    rx, ry = -fy, fx
+    assert (g.x - fl.x) * rx + (g.y - fl.y) * ry > 0  # 接触で動いた後も、誘導員はフォークの右にいる
+
+
+def test_forward_motion_with_rear_corner_contact_places_target_beside():
+    spec = forklift_spec(contact_part="右後", motion="前進")
+    spec.scenes[0].relations[0] = spec.scenes[0].relations[0].model_copy(update={"direction": "右"})
+    s2 = layout(spec)[1]
+    assert not any("矛盾" in w or "前進しているのに" in w for w in s2.warnings)
+    fl, pillar = s2.poses["fl"], s2.poses["pillar"]
+    fx, fy = vec(fl.heading)
+    rx, ry = -fy, fx
+    assert (pillar.x - fl.x) * rx + (pillar.y - fl.y) * ry > 0  # 柱は車体の右横
+    pt = part_point(spec, "fl", fl, "右後")
+    assert math.hypot(pt[0] - s2.contact_points[0][0], pt[1] - s2.contact_points[0][1]) < 1e-6

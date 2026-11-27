@@ -23,7 +23,9 @@ from accident_report.models.interview import (
 MAX_ASK = 2  # 同じ項目を聞く上限（最初の質問＋深掘り1回）
 MAX_TYPES = 1  # 自動で有効にする事故類型の上限（複数候補は画面で選んでもらう想定）
 
-DONT_KNOW = re.compile(r"(分から|わから|覚えて|知ら)(ない|ん)")
+VEHICLE_WORDS = re.compile(r"フォーク|トラック|車両|ダンプ")
+MACHINE_WORDS = re.compile(r"ショベル|ユンボ|ローダー|重機|バックホウ")
+DONT_KNOW = re.compile(r"(分から|わから|分かり|わかり|覚えてい|覚えて|知ら|知り)(ない|ん|ません)")
 
 OPEN_STATUSES = {ItemStatus.UNCONFIRMED, ItemStatus.INSUFFICIENT}
 
@@ -155,7 +157,7 @@ class InterviewEngine:
             # 事故類型は、事故の様子を話す回答（冒頭の説明・事故発生時の状況）からだけ決める
             new_types = []
             if q.kind == "opening" or q.item_id == "accident_event":
-                new_types = self._activate_types(result.accident_types)
+                new_types = self._activate_types(self._correct_types(result.accident_types))
             self._apply(answer, q, result)
             if new_types:
                 self._reextract_for_types(new_types)
@@ -183,8 +185,8 @@ class InterviewEngine:
                 continue  # 有効でない項目は無視（Python側で検証）
             st = self.states[fact.item_id]
             value = fact.value.strip()
-            if not value:
-                continue
+            if not value or (DONT_KNOW.search(value) and len(value) <= 20):
+                continue  # 「分からない」は値として扱わない
             record = ValueRecord(value=value, source_type=SourceType(fact.source_type),
                                  answer_id=answer.answer_id)
             st.history.append(record)
@@ -214,6 +216,8 @@ class InterviewEngine:
         st = self.states[q.item_id]
         if q.kind == "conflict":
             return  # 解消しなければ「矛盾あり」のまま未確認事項に残す
+        if q.kind == "deepen" and st.value and (DONT_KNOW.search(answer.text) or (result and result.dont_know)):
+            return  # 深掘りで分からなければ、今の値を残して「情報不足」のまま
         if DONT_KNOW.search(answer.text) and len(answer.text) <= 20:
             st.status = ItemStatus.UNKNOWN  # 「分からない」はPython側でも判定する
         elif result is not None and result.dont_know:
@@ -227,6 +231,20 @@ class InterviewEngine:
             if answer.answer_id not in st.evidence:
                 st.evidence.append(answer.answer_id)
             self.log.append(f"{q.item_id}: 回答文をそのまま値にした")
+
+    def _correct_types(self, candidates: list[str]) -> list[str]:
+        """小さいモデルの取り違えを言葉で補正する（例: フォークリフトを重機と判定）。"""
+        text = " ".join(a.text for a in self.answers)
+        vehicle = VEHICLE_WORDS.search(text) and not MACHINE_WORDS.search(text)
+        out = []
+        for t in candidates:
+            if vehicle and t in ("machine_vs_facility", "machine_vs_person"):
+                t = "vehicle_vs_facility"
+            if t not in out:
+                out.append(t)
+        if out != candidates:
+            self.log.append(f"事故類型を補正: {candidates} → {out}")
+        return out
 
     def _activate_types(self, candidates: list[str]) -> list[str]:
         new = []

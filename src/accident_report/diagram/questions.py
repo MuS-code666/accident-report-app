@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Callable
 
@@ -44,6 +45,12 @@ def find_questions(spec: DiagramSpec, layouts: list[SceneLayout]) -> list[Drawin
                     elif c == choices[1]:
                         rel.frame, rel.certainty = "図の上", "確定"
 
+                if any(q.qid == f"frame:{rel.subject}:{rel.reference}" for q in qs):
+                    # 同じ関係が複数の場面にある: 1回の回答をすべてに反映する
+                    prev_q = next(q for q in qs if q.qid == f"frame:{rel.subject}:{rel.reference}")
+                    prev_apply = prev_q.apply
+                    prev_q.apply = (lambda c, a=prev_apply, b=apply: (a(c), b(c)))
+                    continue
                 qs.append(DrawingQuestion(
                     f"frame:{rel.subject}:{rel.reference}",
                     f"「{label(rel.subject)}は{label(rel.reference)}の{rel.direction}」の"
@@ -61,6 +68,11 @@ def find_questions(spec: DiagramSpec, layouts: list[SceneLayout]) -> list[Drawin
                     if c in mapping:
                         rel.distance = mapping[c]
 
+                if any(q.qid == f"dist:{rel.subject}:{rel.reference}" for q in qs):
+                    prev_q = next(q for q in qs if q.qid == f"dist:{rel.subject}:{rel.reference}")
+                    prev_apply = prev_q.apply
+                    prev_q.apply = (lambda c, a=prev_apply, b=apply: (a(c), b(c)))
+                    continue
                 qs.append(DrawingQuestion(
                     f"dist:{rel.subject}:{rel.reference}",
                     f"{label(rel.subject)}と{label(rel.reference)}は、どのくらい離れていましたか？",
@@ -81,6 +93,35 @@ def find_questions(spec: DiagramSpec, layouts: list[SceneLayout]) -> list[Drawin
             qs.append(DrawingQuestion(
                 f"place:{eid}",
                 f"{label(eid)}は、{label(anchor)}から見てどの方向にありましたか？（運転席から見て）",
+                choices, apply))
+
+    # 3b. 事故の要になる物（接触した相手・誘導員）の方向は、図の結果を示して必ず確認する
+    if layouts and anchor:
+        first = layouts[0]
+        keys = [c.target for sc in spec.scenes for c in sc.contacts if c.target != anchor]
+        keys += [e.id for e in spec.entities if e.kind == "誘導員"]
+        for eid in dict.fromkeys(keys):
+            if eid in first.unplaced or eid not in first.poses or anchor not in first.poses:
+                continue
+            a, t = first.poses[anchor], first.poses[eid]
+            ang = math.degrees(math.atan2(t.x - a.x, -(t.y - a.y))) - a.heading
+            now = DIRECTIONS[round((ang % 360) / 45) % 8]
+            choices = DIRECTIONS + [DONT_KNOW]
+
+            def apply(c, eid=eid):
+                if c not in DIRECTIONS:
+                    return
+                for sc in spec.scenes:
+                    sc.relations = [r for r in sc.relations
+                                    if not ({r.subject, r.reference} == {eid, anchor})]
+                spec.scenes[0].relations.append(Relation(
+                    subject=eid, reference=anchor, direction=c, frame="基準物の向き",
+                    distance="近い", certainty="確定", evidence=["追加質問"]))
+
+            qs.append(DrawingQuestion(
+                f"confirm:{eid}",
+                f"{label(eid)}は、{label(anchor)}から見てどの方向にありましたか？"
+                f"（運転席から見て。いまの図では「{now}」）",
                 choices, apply))
 
     # 4. 接触部位が分からない

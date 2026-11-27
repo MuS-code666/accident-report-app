@@ -186,3 +186,28 @@ def test_answered_value_is_not_overwritten_by_other_answers():
     eng.next_question()
     eng.submit_answer("搬出口まで運ぶ作業")
     assert eng.states["location"].value == "第一工場の搬出口"
+
+
+def test_deepen_dont_know_keeps_value_as_insufficient():
+    eng = make({"概要": result([fact("datetime", "10月23日", complete=False)])})
+    eng.next_question()
+    eng.submit_answer("概要")
+    while (q := eng.next_question()).kind != "deepen":
+        eng.mark_button("dont_know")
+    eng.submit_answer("それ以上は分かりません")
+    st = eng.states["datetime"]
+    assert st.value == "10月23日" and st.status == ItemStatus.INSUFFICIENT
+
+
+def test_dont_know_value_from_llm_is_ignored():
+    eng = make({"概要": result([fact("location", "分かりません")])})
+    eng.next_question()
+    eng.submit_answer("概要")
+    assert eng.states["location"].value is None
+
+
+def test_forklift_is_corrected_to_vehicle_type():
+    eng = make({"フォークで下がったら柱に当たった": result(types=["machine_vs_facility"])})
+    eng.next_question()
+    eng.submit_answer("フォークで下がったら柱に当たった")
+    assert eng.active_types == ["vehicle_vs_facility"]

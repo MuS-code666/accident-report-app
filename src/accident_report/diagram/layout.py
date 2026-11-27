@@ -228,6 +228,10 @@ def layout(spec: DiagramSpec) -> list[SceneLayout]:
             mover, other = c.entity, c.target
             if spec.entity(mover).fixed and not spec.entity(other).fixed:
                 mover, other = other, mover
+            before = Pose(**vars(poses[mover]))
+            followers = [r.subject for r in rels if r.reference == mover and r.subject in poses
+                         and not spec.entity(r.subject).fixed and r.subject not in fixed_poses
+                         and r.subject not in (c.entity, c.target)]
             motion = next((m for m in scene.motions if m.entity == c.entity), None)
             if motion is None and prev is not None:
                 motion = next((m for m in prev.scene.motions if m.entity == c.entity), None)
@@ -238,6 +242,7 @@ def layout(spec: DiagramSpec) -> list[SceneLayout]:
                                                      c.certainty == "確定")
                 contact_points.append(part_point(spec, c.entity, poses[c.entity], c.part))
                 contact_pairs.add(frozenset((c.entity, c.target)))
+                _shift(poses, followers, before, poses[mover])
                 continue
             pt = part_point(spec, c.entity, poses[c.entity], c.part)
             tgt = closest_point_on_rect(spec, c.target, poses[c.target], pt)
@@ -258,16 +263,18 @@ def layout(spec: DiagramSpec) -> list[SceneLayout]:
                 poses[mover] = Pose(q.x + ux / n * 0.05, q.y + uy / n * 0.05, q.heading, q.certain)
             contact_points.append(part_point(spec, c.entity, poses[c.entity], c.part))
             contact_pairs.add(frozenset((c.entity, c.target)))
+            _shift(poses, followers, before, poses[mover])
 
         # 矛盾チェック: 動きと接触部位
         for c in scene.contacts:
             m = next((m for m in scene.motions if m.entity == c.entity), None)
             if prev is not None and m is None:
                 m = next((m for m in prev.scene.motions if m.entity == c.entity), None)
-            if m and m.kind == "後退" and c.part in ("前部", "左前", "右前", "バケット", "フォーク"):
+            # 角や横は、進行方向と逆側でも旋回や寄せでこすることがあるため矛盾としない
+            if m and m.kind == "後退" and c.part in ("前部", "バケット", "フォーク"):
                 warnings.append(f"{c.entity} は後退しているのに前側（{c.part}）が接触している")
-            if m and m.kind == "前進" and c.part in ("後部", "左後", "右後"):
-                warnings.append(f"{c.entity} は前進しているのに後ろ側（{c.part}）が接触している")
+            if m and m.kind == "前進" and c.part == "後部":
+                warnings.append(f"{c.entity} は前進しているのに後部が接触している")
 
         # 重なりの解消: 動かせる物を中心どうしを結ぶ方向へずらす
         keys = list(poses)
@@ -307,6 +314,14 @@ def layout(spec: DiagramSpec) -> list[SceneLayout]:
     return results
 
 
+def _shift(poses: dict[str, Pose], ids: list[str], before: Pose, after: Pose) -> None:
+    """基準物が動いた分だけ、それを基準に置いた物も動かす。"""
+    dx, dy = after.x - before.x, after.y - before.y
+    for eid in ids:
+        p = poses[eid]
+        poses[eid] = Pose(p.x + dx, p.y + dy, p.heading, p.certain)
+
+
 def _contact_along_motion(spec: DiagramSpec, eid: str, pose: Pose, tid: str, tpose: Pose,
                           part: str, kind: str, certain: bool) -> Pose:
     """前進・後退中の接触。横方向は接触部位の側が相手にかかるように合わせ、
@@ -317,13 +332,20 @@ def _contact_along_motion(spec: DiagramSpec, eid: str, pose: Pose, tid: str, tpo
     tc = corners(spec, tid, tpose)
     lat = [(x - pose.x) * rx + (y - pose.y) * ry for x, y in tc]
     t_lat_c = (min(lat) + max(lat)) / 2
-    px, _ = PART_POINTS.get(part, (0, 0))
+    px, py = PART_POINTS.get(part, (0, 0))
+    lon = [(x - pose.x) * fx + (y - pose.y) * fy for x, y in tc]
+    trailing = (kind == "前進" and py > 0) or (kind == "後退" and py < 0)
+    if trailing and px != 0:
+        # 進行方向と逆側の角・横が当たった: 相手を車体の横に置き、部位の縦位置をそろえる
+        s_lon = (min(lon) + max(lon)) / 2 - (-py * L)
+        s_lat = (max(lat) + W / 2) if px < 0 else (min(lat) - W / 2)
+        return Pose(pose.x + rx * s_lat + fx * s_lon, pose.y + ry * s_lat + fy * s_lon,
+                    pose.heading, pose.certain and certain)
     edge = px * W  # 接触部位の横位置（左 -W/2 / 中央 0 / 右 +W/2）
     if min(lat) <= edge <= max(lat):
         s_lat = 0.0  # すでに相手にかかっている
     else:
         s_lat = t_lat_c - edge
-    lon = [(x - pose.x) * fx + (y - pose.y) * fy for x, y in tc]
     if kind == "後退":
         s_lon = max(lon) - (-L / 2)  # 後ろの面を相手の手前の面へ
     else:

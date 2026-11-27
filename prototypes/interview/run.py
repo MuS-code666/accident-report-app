@@ -47,7 +47,10 @@ def respond(case: dict, q) -> str:
     if q.kind == "conflict":
         return case.get("conflict_answers", {}).get(q.item_id, "前に答えたほうが正しいです。")
     if q.kind == "deepen":
-        return case.get("deepen_answers", {}).get(q.item_id, "それ以上は分かりません。")
+        deep = case.get("deepen_answers", {})
+        if q.item_id in deep:
+            return deep[q.item_id]
+        return case.get("answers", {}).get(q.item_id, "それ以上は分かりません。")
     return case.get("answers", {}).get(q.item_id, "分からないです。")
 
 

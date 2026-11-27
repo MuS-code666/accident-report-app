@@ -8,6 +8,9 @@ text: >-
   ・選別機の外装カバーがへこんだ。
 
 drawing_answers:
+  "confirm:*選別機*": 右前
+  "confirm:*山本*": 左後
+  "place:*山本*": 左後
   "frame:*": 運転席から見て
   "dist:*": 近く（1m くらい）
   "place:*選別機*": 右前
