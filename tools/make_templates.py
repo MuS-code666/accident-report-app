@@ -61,6 +61,9 @@ def make_notice(sample: Path, out: Path) -> None:
             cell.border = Border()
     ws.print_area = f"A1:I{NOTICE_LAST_ROW}"
     _clear_properties(wb)
+    for view in wb.views:  # 削除したシートを指したままだと Excel が修復を求める
+        view.firstSheet = 0
+        view.activeTab = 0
     wb.save(out)
 
 
@@ -75,6 +78,9 @@ def make_detail(sample: Path, out: Path) -> None:
         detail[coord].value = None
     detail.print_area = "A1:J44"
     _clear_properties(wb)
+    for view in wb.views:  # 削除したシートを指したままだと Excel が修復を求める
+        view.firstSheet = 0
+        view.activeTab = 0
     wb.save(out)
 
 

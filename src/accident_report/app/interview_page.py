@@ -98,7 +98,8 @@ class InterviewPage(QWidget):
         self.na_btn = QPushButton("該当なし")
         self.later_btn = QPushButton("後で答える")
         self.dk_btn.clicked.connect(lambda: self.press("dont_know"))
-        self.na_btn.clicked.connect(lambda: self.press("not_applicable"))
+        self.na_btn.clicked.connect(
+            lambda: self.press("confirm" if self.engine.current.kind == "deepen" else "not_applicable"))
         self.later_btn.clicked.connect(lambda: self.press("later"))
         for b in (self.dk_btn, self.na_btn, self.later_btn):
             row.addWidget(b)
@@ -154,6 +155,8 @@ class InterviewPage(QWidget):
         opening = q.item_id is None
         for b in (self.dk_btn, self.na_btn, self.later_btn):
             b.setEnabled(not opening)
+        # 「もう少し詳しく」では、今の内容を残す選択肢にする（「該当なし」で内容が消えないように）
+        self.na_btn.setText("今の内容でよい" if q.kind == "deepen" else "該当なし")
         self._refresh_items()
         self._set_busy("")
         self._speak(q.text)

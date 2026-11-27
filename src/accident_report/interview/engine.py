@@ -11,6 +11,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Callable, Protocol
 
+from accident_report.dates import has_date_and_hour
 from accident_report.interview.questions import QuestionItem, QuestionSet
 from accident_report.models.interview import (
     Answer,
@@ -165,12 +166,26 @@ class InterviewEngine:
         return answer
 
     def mark_button(self, button: str) -> None:
-        """画面のボタン（分からない / 該当なし / 後で回答する）。"""
+        """画面のボタン（分からない / 該当なし / 後で回答する / 今の内容でよい）。
+
+        「もう少し詳しく」の質問では、すでに聞き取った内容を消さない。
+        """
         q = self.current
         if q is None or q.item_id is None:
             return
         st = self.states[q.item_id]
-        if button == "dont_know":
+        if q.kind == "deepen" and st.value:
+            if button == "confirm":
+                st.status = ItemStatus.ANSWERED  # 今の内容で確定
+            elif button == "later":
+                st.deferred = True
+                st.times_asked = max(0, st.times_asked - 1)
+            # 「分からない」: 今の内容を残して「情報不足」のまま（これ以上は聞かない）
+            self.log.append(f"{q.item_id}: 深掘りでボタン {button}")
+            return
+        if button == "confirm":
+            st.status = ItemStatus.ANSWERED if st.value else st.status
+        elif button == "dont_know":
             st.status = ItemStatus.UNKNOWN
         elif button == "not_applicable":
             st.status = ItemStatus.NOT_APPLICABLE
@@ -206,9 +221,13 @@ class InterviewEngine:
             else:
                 if st.status == ItemStatus.INSUFFICIENT and st.value and st.value not in value:
                     value = f"{st.value}、{value}"
+                complete = fact.complete
+                if fact.item_id == "datetime":
+                    # 日時はPython側で判定する（「昨日の午後3時ごろ」も日付と時刻がそろっている）
+                    complete = has_date_and_hour(value, answer.created_at.date())
                 st.value = value
                 st.source_type = record.source_type
-                st.status = ItemStatus.ANSWERED if fact.complete else ItemStatus.INSUFFICIENT
+                st.status = ItemStatus.ANSWERED if complete else ItemStatus.INSUFFICIENT
 
     def _settle_asked_item(self, q: Question, result: ExtractionLike | None, answer: Answer) -> None:
         if q.item_id is None:

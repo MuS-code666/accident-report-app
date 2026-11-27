@@ -20,13 +20,14 @@ import math
 import re
 import unicodedata
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 import openpyxl
 from openpyxl.styles import Alignment, Font
 
 from accident_report import PROJECT_ROOT
+from accident_report.dates import normalize_datetime  # noqa: F401 - 互換のため再公開
 
 TEMPLATE = PROJECT_ROOT / "templates" / "notice_template.xlsx"
 OUTPUT_DIR = PROJECT_ROOT / "output"
@@ -50,73 +51,6 @@ class NoticeForm:
         if self.work_category == "その他":
             return f"その他（{self.work_category_other}）" if self.work_category_other else "その他"
         return self.work_category
-
-
-# ---- 日時の書式 ---------------------------------------------------------
-
-_KANJI = {"〇": 0, "零": 0, "一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
-
-
-def _kanji_to_int(s: str) -> int | None:
-    if s.isdigit():
-        return int(s)
-    if not s or any(ch not in _KANJI and ch != "十" for ch in s):
-        return None
-    if "十" in s:
-        a, _, b = s.partition("十")
-        return (_KANJI[a] if a else 1) * 10 + (_KANJI[b] if b else 0)
-    return int("".join(str(_KANJI[ch]) for ch in s))
-
-
-_NUM = r"([0-9]+|[〇零一二三四五六七八九十]+)"
-
-
-def normalize_datetime(value: str, today: date | None = None) -> str | None:
-    """聞き取った日時を「2026年10月23日 14時ごろ」の形にする。日付が読めなければ None。
-
-    年が言われていなければ、今日より後にならない年にする。「昨日」「今日」「おととい」も扱う。
-    時刻がなければ日付だけを返す（利用者が確認画面で補う）。
-    """
-    today = today or date.today()
-    s = unicodedata.normalize("NFKC", value)
-
-    d: date | None = None
-    m = re.search(rf"(?:{_NUM}年)?\s*{_NUM}月\s*{_NUM}日", s)
-    m2 = re.search(r"(?:(\d{4})[/-])?(\d{1,2})/(\d{1,2})", s)
-    rel = {"一昨日": 2, "おととい": 2, "昨日": 1, "きのう": 1, "今日": 0, "本日": 0, "きょう": 0}
-    try:
-        if m or m2:
-            y, mo, da = (m.groups() if m else m2.groups())
-            mo_i, da_i = _kanji_to_int(mo), _kanji_to_int(da)
-            y_i = _kanji_to_int(y) if y else None
-            if y_i is not None and y_i < 100:
-                y_i += 2000
-            if y_i is None:
-                y_i = today.year
-                if date(y_i, mo_i, da_i) > today:
-                    y_i -= 1
-            d = date(y_i, mo_i, da_i)
-        else:
-            for word, back in rel.items():
-                if word in s:
-                    d = today - timedelta(days=back)
-                    break
-    except (TypeError, ValueError):
-        d = None
-    if d is None:
-        return None
-
-    hour: int | None = None
-    hm = re.search(rf"{_NUM}\s*時", s) or re.search(r"(\d{1,2}):\d{2}", s)
-    if hm:
-        hour = _kanji_to_int(hm.group(1))
-        pm = re.search(r"午後|夕方|夜", s) and hour is not None and hour < 12
-        if pm:
-            hour += 12
-    text = f"{d.year}年{d.month}月{d.day}日"
-    if hour is not None and 0 <= hour <= 24:
-        text += f" {hour}時ごろ"
-    return text
 
 
 # ---- Excel への転記 ---------------------------------------------------
@@ -204,6 +138,9 @@ def write_notice(form: NoticeForm, out_path: Path | None = None, template: Path 
         text = _bullets(lines)
         _put(ws, rng, text, size=_fit_font(ws, text, "BCDEFGHI", rows) or 8)
 
+    for view in wb.views:  # 元のサンプル（2シート）の設定が残ると Excel が「修復」を求めるため直す
+        view.firstSheet = 0
+        view.activeTab = 0
     wb.properties.creator = ""
     wb.properties.lastModifiedBy = ""
     out_path = out_path or OUTPUT_DIR / f"事故報告_通知用_{datetime.now():%Y%m%d-%H%M%S}.xlsx"
