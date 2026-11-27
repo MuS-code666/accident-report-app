@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import shutil
 import sqlite3
+import threading
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -74,58 +75,78 @@ class CaseRow:
     output_path: str | None
 
 
+def _locked(fn):
+    def wrapper(self, *args, **kwargs):
+        with self._lock:
+            return fn(self, *args, **kwargs)
+    wrapper.__name__, wrapper.__doc__ = fn.__name__, fn.__doc__
+    return wrapper
+
+
 class Store:
     def __init__(self, path: Path = DEFAULT_DB):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.conn = sqlite3.connect(self.path)
+        # 画面とバックグラウンド処理の両方から使うため、ロックで1つずつ実行する
+        self.conn = sqlite3.connect(self.path, check_same_thread=False)
+        self._lock = threading.RLock()
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript(SCHEMA)
         for k, v in DEFAULT_SETTINGS.items():
             self.conn.execute("INSERT OR IGNORE INTO settings(key, value) VALUES (?, ?)", (k, v))
         self.conn.commit()
 
+    @_locked
     def close(self) -> None:
         self.conn.close()
 
     # ---- 利用者 ----
+    @_locked
     def users(self) -> list[tuple[str, str]]:
         return [(r["name"], r["role"]) for r in self.conn.execute("SELECT name, role FROM users ORDER BY id")]
 
+    @_locked
     def add_user(self, name: str, role: str = "作業員") -> None:
         name = name.strip()
         if name:
             self.conn.execute("INSERT OR REPLACE INTO users(name, role) VALUES (?, ?)", (name, role))
             self.conn.commit()
 
+    @_locked
     def remove_user(self, name: str) -> None:
         self.conn.execute("DELETE FROM users WHERE name = ?", (name,))
         self.conn.commit()
 
     # ---- 用語（社員・重機・設備などのマスターデータ） ----
+    @_locked
     def terms(self) -> list[tuple[str, str]]:
         return [(r["word"], r["category"]) for r in self.conn.execute("SELECT word, category FROM terms ORDER BY category, word")]
 
+    @_locked
     def add_term(self, word: str, category: str = "その他") -> None:
         word = word.strip()
         if word:
             self.conn.execute("INSERT OR REPLACE INTO terms(word, category) VALUES (?, ?)", (word, category))
             self.conn.commit()
 
+    @_locked
     def remove_term(self, word: str) -> None:
         self.conn.execute("DELETE FROM terms WHERE word = ?", (word,))
         self.conn.commit()
 
     # ---- 設定 ----
+    @_locked
     def setting(self, key: str) -> str:
         row = self.conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
         return row["value"] if row else DEFAULT_SETTINGS.get(key, "")
 
+    @_locked
     def set_setting(self, key: str, value: str) -> None:
         self.conn.execute("INSERT OR REPLACE INTO settings(key, value) VALUES (?, ?)", (key, value))
         self.conn.commit()
 
     # ---- 案件 ----
+    @_locked
     def create_case(self, reporter: str) -> int:
         now = datetime.now().isoformat(timespec="seconds")
         cur = self.conn.execute(
@@ -134,6 +155,7 @@ class Store:
         self.conn.commit()
         return int(cur.lastrowid)
 
+    @_locked
     def save_case(self, case_id: int, *, engine: dict | None = None, draft: dict | None = None,
                   status: str | None = None, title: str | None = None, output_path: str | None = None) -> None:
         fields, values = ["updated_at = ?"], [datetime.now().isoformat(timespec="seconds")]
@@ -151,18 +173,21 @@ class Store:
         self.conn.execute(f"UPDATE cases SET {', '.join(fields)} WHERE id = ?", values)
         self.conn.commit()
 
+    @_locked
     def load_case(self, case_id: int) -> CaseRow:
         r = self.conn.execute("SELECT * FROM cases WHERE id = ?", (case_id,)).fetchone()
         if r is None:
             raise KeyError(case_id)
         return self._row(r)
 
+    @_locked
     def list_cases(self, include_exported: bool = True) -> list[CaseRow]:
         sql = "SELECT * FROM cases"
         if not include_exported:
             sql += f" WHERE status != '{STATUS_EXPORTED}'"
         return [self._row(r) for r in self.conn.execute(sql + " ORDER BY updated_at DESC")]
 
+    @_locked
     def delete_case(self, case_id: int) -> None:
         self.conn.execute("DELETE FROM cases WHERE id = ?", (case_id,))
         self.conn.commit()

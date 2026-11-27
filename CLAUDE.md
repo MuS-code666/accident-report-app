@@ -4,9 +4,23 @@
 
 ## プロジェクト概要
 
-accident-report-app — 事故報告アプリ。
+accident-report-app — 工場内事故の報告書を、AIの聞き取り（音声入力）で作る完全オフラインの Windows アプリ。Python 3.12 + PySide6。
 
-現時点ではソースコードはまだありません。技術スタック、ビルド・テスト手順、ディレクトリ構成が決まったら、このファイルに追記してください。
+- 起動: `start_app.bat`（中身は `.venv\Scripts\pythonw -m accident_report.app`）。Ollama を先に起動しておく
+- テスト: `.venv\Scripts\python -m pytest -q`（テンプレートが必要なテストは、`templates/` がなければスキップ）
+- `python` は標準の Python を指すので、必ず `.venv\Scripts\python` を使う
+- 進捗: Phase 1（技術検証）完了・合格基準は `prototypes/README.md`。Phase 2（基本機能）作業中
+
+## ディレクトリ構成
+
+- `src/accident_report/app/` 画面（開始・聞き取り・確認・設定）。重い処理は `services.run_task` で裏で動かす
+- `src/accident_report/interview/` 聞き取りの進行管理（Python側）と回答の抽出（LLM）
+- `src/accident_report/writing/` 通知用の文章生成と根拠チェック
+- `src/accident_report/export/` Excel 転記（`notice_excel.py`。転記位置はファイル冒頭に記載）
+- `src/accident_report/storage/` SQLite（`data/app.db`）。案件・利用者・用語・設定。録音は `data/audio/`
+- `src/accident_report/diagram/` 作図（Phase 3 で画面に組み込む）
+- `src/accident_report/speech/` 音声認識
+- `config/` 質問セット・用語。`prototypes/` Phase 1 の検証用スクリプト
 
 ## Git運用ルール
 
