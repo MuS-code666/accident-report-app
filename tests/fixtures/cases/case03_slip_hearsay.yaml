@@ -1,0 +1,43 @@
+# 架空の事故事例（実在の人物・事故とは無関係）
+# 報告者は事故を見ておらず、後から聞いた人。伝聞と矛盾の扱いを確認する。
+id: case03
+title: 選別場での転倒（伝聞）
+expected_types: [slip_trip]
+
+opening: >-
+  自分は見てないんですけど、伊藤さんが選別場で転んで腰を打ったって聞きました。
+  10月30日の昼過ぎだったと思います。
+
+answers:
+  datetime: 10月31日の13時ごろでした。すみません、30日じゃなくて31日です。
+  location: 第一工場の手選別場です。
+  persons_involved: 転んだのは伊藤さんです。
+  reporter_role: 自分は後から伊藤さんに聞きました。
+  work_content: 伊藤さんは手選別をしていたそうです。
+  work_instruction: 分からないです。
+  equipment: 道具は使ってなかったと思います。
+  before_accident: 分からないです。
+  accident_event: 床が濡れていて、足が滑って尻もちをついたそうです。
+  surroundings: 分からないです。
+  human_damage: 伊藤さんが腰を打ったそうです。病院には行ってないと聞きました。
+  property_damage: ないと思います。
+  response_after: 伊藤さんは少し休んでから作業に戻ったそうです。
+  cause: 床に水がたまっていたからだと思います。
+  countermeasure: 床の水をこまめに拭く。
+  floor_condition: 濡れていたそうです。
+  body_part: 腰です。
+  footwear: 分からないです。
+
+conflict_answers:
+  datetime: 31日が正しいです。
+
+deepen_answers: {}
+
+expected:
+  datetime: ["31日", "13時"]
+  location: ["第一工場", "選別"]
+  persons_involved: ["伊藤"]
+  accident_event: ["滑"]
+  human_damage: ["腰"]
+
+forbidden_in_report: ["骨折", "重機", "救急車"]

@@ -1,0 +1,53 @@
+# 架空の事故事例（実在の人物・事故とは無関係）
+id: case01
+title: フォークリフト後退時のシャッター接触
+expected_types: [vehicle_vs_facility]
+
+opening: >-
+  えーと、きのうの夕方、第一工場の搬出口のところで、フォークで後ろに下がってたら
+  シャッターの柱に当たっちゃいました。けが人はいないです。
+
+# 質問された項目 → 利用者の回答（ここにない項目は「分からない」と答える）
+answers:
+  datetime: 11月20日の16時半ごろです。
+  persons_involved: 運転してたのは自分、田中です。近くに誰もいませんでした。
+  reporter_role: 自分が運転してました。
+  work_content: 選別が終わったパレットを搬出口まで運ぶ作業です。
+  work_instruction: 班長の木村さんから、終わったら出しといてって言われてました。
+  equipment: 2.5トンのフォークリフトです。
+  before_accident: >-
+    パレットを積んで搬出口まで行って、トラックの位置を見ようと思って一回止まって、
+    それから向きを変えようとして後ろに下がりました。
+  accident_event: 後ろに下がったとき、フォークの左後ろがシャッターの柱に当たりました。
+  surroundings: 柱の横に空のフレコンが置いてありました。
+  property_damage: シャッターの柱がへこんだのと、フォークのカウンターウェイトに傷がつきました。
+  response_after: すぐ止めて、木村さんに報告しました。作業はそこで止めました。
+  cause: 後ろをちゃんと見てなかったと思います。フレコンをよけようとして柱に寄ってしまった。
+  countermeasure: バックするときは止まって後ろを目で見る。柱の近くに物を置かない。
+  vehicle_type: カウンター式のフォークリフト、2.5トンです。
+  operator: 自分、田中です。
+  qualification: フォークリフトの運転技能講習は受けてます。
+  travel_direction: 搬出口から工場の中に戻る向きです。
+  motion_kind: 後退です。
+  contact_target: シャッターの柱です。
+  contact_part: 左の後ろ、カウンターウェイトのところです。
+  visibility: 振り向いたけど、柱はミラーの死角だったと思います。
+  load_state: パレットを1枚積んでました。
+
+# 深掘り（もう少し詳しく）への回答
+deepen_answers:
+  datetime: 11月20日の16時半ごろです。
+
+# 正しく抽出されるべき値（キーワードがすべて含まれていれば正解）
+expected:
+  datetime: ["11月20日", "16時"]
+  location: ["第一工場", "搬出口"]
+  equipment: ["フォーク"]
+  accident_event: ["柱"]
+  human_damage: ["なし|いない"]
+  property_damage: ["柱"]
+  motion_kind: ["後退"]
+  contact_part: ["左"]
+
+# 報告書に出てはいけない言葉（聞き取っていない事実）
+forbidden_in_report: ["誘導", "骨折", "負傷"]

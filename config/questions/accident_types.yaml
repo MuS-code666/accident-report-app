@@ -1,0 +1,91 @@
+# 事故類型と、類型ごとの追加質問（設計図 §6.3）
+# AIが回答から類型の候補を挙げ、該当した類型の items を共通項目に追加する。
+# 追加質問の priority は 110〜190（事実関係の後、原因の前）。
+
+types:
+  - id: machine_vs_person
+    description: 油圧ショベル・ホイールローダーなどの重機が人に当たった
+    label: 重機と作業員の接触
+    items: [machine_type, operator, qualification, travel_direction, motion_kind, contact_target, contact_part, guide_person, guide_method, visibility, obstacles, work_space]
+  - id: machine_vs_facility
+    description: 重機が柱・壁・扉・設備などの物に当たった
+    label: 重機と設備の接触
+    items: [machine_type, operator, qualification, travel_direction, motion_kind, contact_target, contact_part, guide_person, guide_method, visibility, obstacles, work_space]
+  - id: vehicle_vs_facility
+    description: フォークリフト（フォーク）・トラックなどの車両が柱・壁・設備などの物に当たった
+    label: 車両と設備の接触
+    items: [vehicle_type, operator, qualification, travel_direction, motion_kind, contact_target, contact_part, visibility, load_state]
+  - id: vehicle_vs_vehicle
+    description: 車両や重機どうしが当たった
+    label: 車両・重機同士の接触
+    items: [vehicle_type, operator, travel_direction, motion_kind, contact_part, signal_rule]
+  - id: caught_in
+    description: コンベヤー・ローラー・回転部などに体が巻き込まれた・挟まれた
+    label: 設備への巻き込まれ
+    items: [machine_stopped, body_part, safety_cover, emergency_stop, procedure]
+  - id: slip_trip
+    description: 同じ高さで滑った・つまずいて転んだ
+    label: 転倒
+    items: [floor_condition, body_part, footwear]
+  - id: fall
+    description: 高い所から落ちた
+    label: 転落
+    items: [fall_height, floor_condition, fall_protection, body_part]
+  - id: falling_object
+    description: 荷物や物が上から落ちてきた
+    label: 荷物の落下
+    items: [object_kind, object_weight, drop_height, stacking, protective_gear]
+  - id: flying_object
+    description: 破片などが飛んできて当たった
+    label: 飛来物との接触
+    items: [object_kind, body_part, protective_gear]
+  - id: cut_pinch
+    description: 刃物で切った、物のすき間に挟まれた（設備の巻き込まれ以外）
+    label: 切創・挟まれ
+    items: [tool, body_part, gloves, posture]
+  - id: fire_smoke
+    description: 火が出た・煙が出た
+    label: 火災・発煙
+    items: [fire_location, ignition_source, initial_extinguish, emergency_call]
+  - id: other
+    description: 上のどれにも当たらない
+    label: その他
+    items: []
+
+items:
+  - {id: machine_type, label: 重機の種類, question: 重機の種類と大きさを教えてください。, hint: 油圧ショベル0.7など, priority: 110}
+  - {id: vehicle_type, label: 車両の種類, question: 車両の種類を教えてください。, hint: フォークリフト、トラックなど, priority: 110}
+  - {id: operator, label: 運転者, question: 運転していたのは誰ですか？, hint: 運転者の氏名や立場, priority: 115}
+  - {id: qualification, label: 資格・教育, question: 運転していた人は、その重機や車両の資格や教育を受けていましたか？, hint: 資格・特別教育の有無, priority: 120}
+  - {id: travel_direction, label: 進行方向, question: 重機や車両はどちらへ向かって動いていましたか？, hint: どこからどこへ向かっていたか, priority: 125}
+  - {id: motion_kind, label: 動きの種類, question: 前進、後退、旋回のどれをしていましたか？, hint: 前進 / 後退 / 旋回 / 停止, priority: 130}
+  - {id: contact_target, label: 接触した相手, question: 何に接触しましたか？, hint: 接触した物・人, priority: 135}
+  - {id: contact_part, label: 接触した部位, question: 重機や車両のどの部分が当たりましたか？, hint: バケット、キャビン、後部など, priority: 140}
+  - {id: guide_person, label: 誘導員, question: 誘導していた人はいましたか？, hint: 誘導員の有無と氏名, priority: 145}
+  - {id: guide_method, label: 誘導方法, question: どのように誘導していましたか？, hint: 手合図、無線、声など, priority: 150}
+  - {id: visibility, label: 運転者からの視界, question: 運転席から、ぶつかった物は見えていましたか？, hint: 見えていた / 死角だった, priority: 155}
+  - {id: obstacles, label: 周囲の障害物, question: 近くに障害になる物は置いてありましたか？, hint: 置いてあった物と位置, priority: 160}
+  - {id: work_space, label: 作業スペース, question: 作業していた場所の広さはどうでしたか？, hint: 狭い、十分など, priority: 165}
+  - {id: load_state, label: 積荷の状態, question: 荷物を積んでいましたか？, hint: 積荷の有無と量, priority: 160}
+  - {id: signal_rule, label: 合図・優先ルール, question: すれ違うときの合図や決まりはありましたか？, hint: ルールの有無, priority: 160}
+  - {id: machine_stopped, label: 設備の停止状態, question: そのとき設備は動いていましたか、止まっていましたか？, hint: 運転中 / 停止中, priority: 110}
+  - {id: body_part, label: けがをした体の部位, question: 体のどこを痛めましたか？, hint: 手、足など, priority: 120}
+  - {id: safety_cover, label: 安全カバー, question: 安全カバーは付いていましたか？, hint: 有無と状態, priority: 130}
+  - {id: emergency_stop, label: 非常停止, question: 非常停止ボタンは使えましたか？, hint: 使用の有無, priority: 140}
+  - {id: procedure, label: 作業手順, question: 決められた作業手順はありましたか？, hint: 手順の有無と守られていたか, priority: 150}
+  - {id: floor_condition, label: 足元の状態, question: 足元はどんな状態でしたか？, hint: 濡れていた、物があったなど, priority: 110}
+  - {id: footwear, label: 履物, question: どんな靴を履いていましたか？, hint: 安全靴など, priority: 140}
+  - {id: fall_height, label: 落ちた高さ, question: どのくらいの高さから落ちましたか？, hint: 高さ（m）, priority: 110}
+  - {id: fall_protection, label: 墜落防止, question: 手すりや安全帯はありましたか？, hint: 有無と使用状況, priority: 130}
+  - {id: object_kind, label: 物の種類, question: 落ちた物、飛んできた物は何でしたか？, hint: 物の名前, priority: 110}
+  - {id: object_weight, label: 物の重さ, question: その物はどのくらいの重さでしたか？, hint: 重さ（kg）, priority: 120}
+  - {id: drop_height, label: 落下した高さ, question: どのくらいの高さから落ちましたか？, hint: 高さ（m）, priority: 125}
+  - {id: stacking, label: 積み方, question: どのように積んでいましたか？, hint: 段数や固定の有無, priority: 130}
+  - {id: protective_gear, label: 保護具, question: ヘルメットや保護めがねなどを着けていましたか？, hint: 保護具の着用状況, priority: 150}
+  - {id: tool, label: 使用道具, question: 何の道具を使っていましたか？, hint: カッターなど, priority: 110}
+  - {id: gloves, label: 手袋, question: 手袋をしていましたか？, hint: 手袋の種類, priority: 130}
+  - {id: posture, label: 作業姿勢, question: どんな姿勢で作業していましたか？, hint: しゃがんでいたなど, priority: 140}
+  - {id: fire_location, label: 出火場所, question: どこから火や煙が出ましたか？, hint: 場所と設備, priority: 110}
+  - {id: ignition_source, label: 火元, question: 何が燃えた、または煙を出したと思いますか？, hint: 電池などの原因物（推測を含む）, priority: 120}
+  - {id: initial_extinguish, label: 初期消火, question: 火を消すために何をしましたか？, hint: 消火器の使用など, priority: 130}
+  - {id: emergency_call, label: 通報, question: 消防などに通報しましたか？, hint: 通報の有無, priority: 140}

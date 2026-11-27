@@ -37,6 +37,16 @@ accident-report-app — 事故報告アプリ。
 - 詳細報告: 正式な空欄テンプレートが届くまで、サンプルから作った暫定テンプレートを使う
 - openpyxl はグループ化図形・画像を読み込めず、保存すると消える。テンプレートは図形なしとし、事故状況図は PNG で貼る
 
+## 実行環境の制約（2026-11-27 判明）
+
+- 開発PCと本番端末の両方で **Windows スマートアプリコントロール（SAC）が有効**。署名がなく評判の低い DLL / EXE は読み込みを拒否される
+  - ブロック確認済み: llama-cpp-python の `llama.dll`、PyAV（`av`）
+  - 読み込める: ctranslate2、onnxruntime、PySide6、numpy、sounddevice
+- LLM は **Ollama**（Ollama Inc. の署名あり）を使う。127.0.0.1:11434 のみで待ち受けることを確認済み。llama.cpp 組み込み案は保留
+- faster-whisper は import 時に PyAV を読むため、PyAV を使わない形で読み込む（音声は numpy 配列で渡す）
+- 自作アプリの配布にはコード署名が必要になる見込み（Phase 5 の課題）
+- 開発PCは Core Ultra 7 258V・32GB で本番端末より速い。処理時間の測定値は参考値とし、ベンチマークは本番端末でも実行する
+
 ## ローカル環境
 
 - 暫定テンプレート: `templates/notice_template.xlsx`、`templates/detail_template.xlsx`（Git 対象外）。`python tools/make_templates.py 事故報告書.xlsx` で再作成できる

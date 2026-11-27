@@ -1,0 +1,42 @@
+# 架空の事故事例（実在の人物・事故とは無関係）
+id: case02
+title: コンベヤー清掃中の指挟まれ
+expected_types: [caught_in]
+
+opening: >-
+  選別ラインのコンベヤーを掃除してたら、ローラーのところに右手の指を挟まれました。
+  今日の朝9時ごろです。
+
+answers:
+  location: 第二工場の選別ライン、2番コンベヤーの終わりのあたりです。
+  persons_involved: 自分、鈴木です。隣で高橋さんも掃除してました。
+  reporter_role: けがをしたのは自分です。
+  work_content: 始業前のコンベヤー清掃です。
+  work_instruction: 毎朝やることになってるので、特に指示はないです。
+  equipment: 2番コンベヤーです。
+  before_accident: >-
+    ベルトの裏にゴミが詰まってたので、ブラシで取ろうとしてました。
+    取れなかったので手を入れました。
+  accident_event: 手を入れたときにベルトが動いて、右手の人差し指がローラーに挟まれました。
+  surroundings: 隣に高橋さんがいました。
+  human_damage: 右手の人差し指を打撲しました。病院に行って骨は大丈夫と言われました。
+  property_damage: 壊れた物はないです。
+  response_after: 高橋さんが非常停止を押してくれて、班長に報告して病院に行きました。
+  cause: たぶん誰かがコンベヤーを動かしたんだと思います。止まってると思い込んでました。
+  countermeasure: 掃除のときは電源を切って札をかける。手を入れない。
+  machine_stopped: 止まってると思ってましたが、動きました。
+  body_part: 右手の人差し指です。
+  safety_cover: ローラーのところにはカバーはないです。
+  emergency_stop: 高橋さんが押してくれました。
+  procedure: 清掃の手順書はありますけど、電源を切ることは書いてなかったと思います。
+
+deepen_answers: {}
+
+expected:
+  datetime: ["9時"]
+  location: ["第二工場", "コンベヤー"]
+  accident_event: ["指", "ローラー"]
+  human_damage: ["人差し指", "打撲"]
+  body_part: ["人差し指"]
+
+forbidden_in_report: ["骨折", "切断", "誘導"]

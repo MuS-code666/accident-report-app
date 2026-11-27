@@ -1,0 +1,10 @@
+# 実行に必要なライブラリ（pip install -r requirements.txt）
+# 注意: スマートアプリコントロール有効環境では llama-cpp-python と PyAV が読み込めないため使わない
+pydantic>=2.7
+pyyaml>=6
+numpy>=1.26
+sounddevice>=0.4
+faster-whisper>=1.1
+PySide6>=6.7
+openpyxl>=3.1
+pytest>=8

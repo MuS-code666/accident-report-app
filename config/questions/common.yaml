@@ -1,0 +1,119 @@
+# 共通の聞き取り項目（設計図 §6.2）
+# id        : 項目ID（変更しない）
+# label     : 項目名
+# question  : 定型の質問文（画面表示・読み上げ）
+# hint      : AIが回答から値を抜き出すときの説明
+# required  : 必須項目か
+# group     : fact（事実関係） / cause（原因・対策。最後に聞く）
+# priority  : 小さいほど先に聞く
+
+opening:
+  question: どんな事故だったか、簡単に教えてください。
+  hint: 事故の概要の自由な説明
+
+items:
+  - id: datetime
+    label: 事故発生日時
+    question: 事故が起きたのは何月何日の何時ごろですか？
+    hint: 日付と時刻。時刻がなければ情報不足
+    required: true
+    group: fact
+    priority: 10
+  - id: location
+    label: 発生場所
+    question: どこの工場の、どのあたりで起きましたか？
+    hint: 工場名と場所（入口付近など）
+    required: true
+    group: fact
+    priority: 20
+  - id: persons_involved
+    label: 事故当事者
+    question: 事故に関係した人は誰ですか？
+    hint: 当事者の氏名や立場（運転者、誘導者など）
+    required: true
+    group: fact
+    priority: 30
+  - id: reporter_role
+    label: 報告者の立場
+    question: あなたは事故の当事者ですか、それとも事故を見た人ですか？
+    hint: 当事者 / 目撃者 / 後から聞いた人
+    required: true
+    group: fact
+    priority: 35
+  - id: work_content
+    label: 作業内容
+    question: 何の作業をしていましたか？
+    hint: 事故のとき行っていた作業
+    required: true
+    group: fact
+    priority: 40
+  - id: work_instruction
+    label: 作業指示
+    question: 誰かから作業の指示を受けていましたか？
+    hint: 指示した人と指示の内容。指示がなければ該当なし
+    required: false
+    group: fact
+    priority: 45
+  - id: equipment
+    label: 使用設備
+    question: 何の重機、車両、設備を使っていましたか？
+    hint: 重機・車両・設備の名前や種類。手作業のみなら該当なし
+    required: true
+    group: fact
+    priority: 50
+  - id: before_accident
+    label: 事故発生前の経緯
+    question: 事故が起きる少し前から、何をしていたか順番に教えてください。
+    hint: 事故直前までの行動の流れ
+    required: true
+    group: fact
+    priority: 60
+  - id: accident_event
+    label: 事故発生時の状況
+    question: 具体的に何が起きましたか？
+    hint: 何が何にどうなったか（接触、転倒など）
+    required: true
+    group: fact
+    priority: 70
+  - id: surroundings
+    label: 周囲の状況
+    question: 周りに人や物、設備はありましたか？
+    hint: 近くにいた人、置いてあった物、設備
+    required: false
+    group: fact
+    priority: 80
+  - id: human_damage
+    label: 人的被害
+    question: けがをした人はいますか？
+    hint: けが人の有無と程度。いなければ「なし」
+    required: true
+    group: fact
+    priority: 90
+  - id: property_damage
+    label: 物的被害
+    question: 壊れたり傷ついたりしたものはありますか？
+    hint: 壊れた物と程度。なければ「なし」
+    required: true
+    group: fact
+    priority: 95
+  - id: response_after
+    label: 事故後の対応
+    question: 事故が起きた後、何をしましたか？
+    hint: 報告、応急処置、作業中止など
+    required: true
+    group: fact
+    priority: 100
+  - id: cause
+    label: 発生原因
+    question: なぜ事故が起きたと思いますか？
+    hint: 報告者が考える原因。推測として扱う
+    required: false
+    group: cause
+    priority: 200
+  - id: countermeasure
+    label: 対策案
+    question: どうすれば今回の事故を防げたと思いますか？
+    hint: 報告者が考える対策
+    required: false
+    group: cause
+    priority: 210

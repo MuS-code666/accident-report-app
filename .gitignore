@@ -12,25 +12,26 @@
 *.m4a
 *.flac
 *.ogg
-data/
-samples/
-real_data/
+/data/
+/samples/
+/real_data/
 
 # データベース・案件データ
 *.db
 *.sqlite
 *.sqlite3
-cases/
-output/
-exports/
+/cases/
+/output/
+/exports/
 
 # --- AIモデル（サイズが大きいため） ---
-models/
+/models/
 *.gguf
 *.bin
 *.safetensors
 
 # --- Python ---
+.pytest_cache/
 __pycache__/
 *.py[cod]
 .venv/
@@ -45,3 +46,6 @@ build/
 .idea/
 Thumbs.db
 desktop.ini
+
+# --- 暫定テンプレート（サンプルから作成。個別情報なしを確認するまで対象外） ---
+/templates/
