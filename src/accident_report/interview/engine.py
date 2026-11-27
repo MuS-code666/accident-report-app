@@ -274,6 +274,41 @@ class InterviewEngine:
         last = self.answers[-1]
         self._apply(last, Question("item", None, "これまでの聞き取り"), result)
 
+    # ---- 保存と再開 ------------------------------------------------------
+
+    def snapshot(self) -> dict:
+        """中断・再開用に、進行状態をJSONにできる形で返す。"""
+        return {
+            "version": 1,
+            "states": {k: v.model_dump(mode="json") for k, v in self.states.items()},
+            "active_types": list(self.active_types),
+            "answers": [a.model_dump(mode="json") for a in self.answers],
+            "current": (None if self.current is None else
+                        {"kind": self.current.kind, "item_id": self.current.item_id, "text": self.current.text}),
+            "log": list(self.log),
+            "next_id": len(self.answers) + 1,
+            "opening_done": self._opening_done,
+        }
+
+    @classmethod
+    def restore(cls, qset: QuestionSet, extractor: Extractor, data: dict) -> "InterviewEngine":
+        eng = cls(qset=qset, extractor=extractor)
+        eng.states = {k: ItemState.model_validate(v) for k, v in data["states"].items()}
+        eng.active_types = list(data["active_types"])
+        eng.answers = [Answer.model_validate(a) for a in data["answers"]]
+        cur = data.get("current")
+        eng.current = Question(cur["kind"], cur["item_id"], cur["text"]) if cur else None
+        eng.log = list(data.get("log", []))
+        eng._ids = itertools.count(data.get("next_id", len(eng.answers) + 1))
+        eng._opening_done = data.get("opening_done", bool(eng.answers))
+        return eng
+
+    def progress(self) -> tuple[int, int]:
+        """必須項目のうち、聞き終えた数 / 全体の数（画面の進み具合の表示用）。"""
+        req = [i for i in self.states if self.qset.item(i).required]
+        done = [i for i in req if self.states[i].status not in OPEN_STATUSES]
+        return len(done), len(req)
+
     # ---- 参照 ------------------------------------------------------------
 
     def _llm_items(self) -> list[QuestionItem]:

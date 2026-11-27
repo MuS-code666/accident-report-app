@@ -95,5 +95,28 @@ def check_draft(draft: NoticeDraft, engine: InterviewEngine) -> list[CheckIssue]
     return issues
 
 
+def draft_to_form(engine: InterviewEngine, draft: NoticeDraft, name: str):
+    """AIの下書きと聞き取り結果から、確認画面・Excel 転記用のフォームを作る。"""
+    from accident_report.export.notice_excel import NoticeForm, normalize_datetime
+
+    def value(item_id: str) -> str:
+        st = engine.states.get(item_id)
+        return st.value if st and st.value and st.status in (ItemStatus.ANSWERED, ItemStatus.INSUFFICIENT) else ""
+
+    asked_on = engine.answers[0].created_at.date() if engine.answers else None
+    raw_dt = value("datetime")
+    return NoticeForm(
+        datetime_text=(normalize_datetime(raw_dt, asked_on) or raw_dt) if raw_dt else "",
+        name=name,
+        location=value("location"),
+        work_category=draft.work_category,
+        work_category_other=draft.work_category_other or "",
+        overview=[s.text for s in draft.overview],
+        cause=[s.text for s in draft.cause],
+        countermeasure=[s.text for s in draft.countermeasure],
+        unresolved=[f"{label}（{status.value}）" for label, status in engine.unresolved()],
+    )
+
+
 def _to_full(s: str) -> str:
     return s.translate(str.maketrans("0123456789.", "０１２３４５６７８９．"))
