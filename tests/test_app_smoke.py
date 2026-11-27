@@ -28,7 +28,7 @@ class FakeClient:
 
     def generate_json(self, system, prompt, schema, max_tokens=1024):
         return NoticeDraft.model_validate({
-            "work_category": "運搬（車輌・フォーク）",
+            "involved_persons": ["私"], "work_category": "運搬（車輌・フォーク）",
             "overview": [{"text": "フォークリフトで後退中、シャッターの柱に接触した。", "evidence": ["A001"]}],
             "cause": [], "countermeasure": []})
 

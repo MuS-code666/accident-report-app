@@ -36,7 +36,7 @@ from accident_report.writing.notice import check_draft, draft_to_form, generate_
 if TYPE_CHECKING:
     from accident_report.app.main import MainWindow
 
-SECTION = {"overview": "事故概要", "cause": "発生原因", "countermeasure": "対策案"}
+SECTION = {"involved_persons": "氏名", "overview": "事故概要", "cause": "発生原因", "countermeasure": "対策案"}
 
 
 def _lines(edit: QPlainTextEdit) -> list[str]:
@@ -73,6 +73,7 @@ class ReviewPage(QWidget):
         self.dt = QLineEdit()
         self.dt.setPlaceholderText("例: 2026年10月23日 14時ごろ")
         self.name = QLineEdit()
+        self.name.setPlaceholderText("事故の当事者の氏名（複数なら「、」で区切る）")
         self.location = QLineEdit()
         self.category = QComboBox()
         self.category.addItems(WORK_CATEGORIES)
@@ -90,7 +91,7 @@ class ReviewPage(QWidget):
         self.unresolved = QPlainTextEdit()
         self.unresolved.setMinimumHeight(70)
         form.addRow("日時", self.dt)
-        form.addRow("氏名", self.name)
+        form.addRow("氏名\n（事故当事者）", self.name)
         form.addRow("場所", self.location)
         form.addRow("作業区分", cat_row)
         form.addRow("事故概要\n（1行に1文）", self.overview)
@@ -154,8 +155,8 @@ class ReviewPage(QWidget):
         self._set_busy(True)
 
         def work():
-            draft = generate_notice(writer, eng)
-            issues = check_draft(draft, eng)
+            draft = generate_notice(writer, eng, reporter)
+            issues = check_draft(draft, eng, reporter)
             return draft, issues, draft_to_form(eng, draft, reporter)
 
         run_task(work, self._generated, self._generate_failed)
@@ -174,7 +175,7 @@ class ReviewPage(QWidget):
                             f"直接入力してください。\n{message}")
         eng = self.engine
         val = lambda i: eng.states[i].value or "" if i in eng.states else ""  # noqa: E731
-        form = NoticeForm(datetime_text=val("datetime"), name=self.reporter, location=val("location"),
+        form = NoticeForm(datetime_text=val("datetime"), name="", location=val("location"),
                           overview=[a.text for a in eng.answers if a.question_item_id not in ("cause", "countermeasure")],
                           cause=[val("cause")] if val("cause") else [],
                           countermeasure=[val("countermeasure")] if val("countermeasure") else [],
@@ -183,7 +184,7 @@ class ReviewPage(QWidget):
 
     def _fill(self, form: NoticeForm, issues: list[str]) -> None:
         self.dt.setText(form.datetime_text)
-        self.name.setText(form.name or self.reporter)
+        self.name.setText(form.name)
         self.location.setText(form.location)
         self.category.setCurrentText(form.work_category or "その他")
         self.category_other.setText(form.work_category_other)
@@ -216,7 +217,7 @@ class ReviewPage(QWidget):
 
     def export(self) -> None:
         form = self.collect()
-        missing = [n for n, v in (("日時", form.datetime_text), ("場所", form.location), ("事故概要", form.overview)) if not v]
+        missing = [n for n, v in (("日時", form.datetime_text), ("氏名", form.name), ("場所", form.location), ("事故概要", form.overview)) if not v]
         if missing and QMessageBox.question(
                 self, "出力", f"{'・'.join(missing)} が空欄です。このまま出力しますか？") != QMessageBox.StandardButton.Yes:
             return
