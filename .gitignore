@@ -1,0 +1,47 @@
+# --- 実データ（GitHubに置かない） ---
+# 事故報告書・Excel（記入済み報告書、出力ファイル）
+*.xlsx
+*.xlsm
+*.xls
+# 空欄テンプレートを管理する場合は、個別情報が残っていないことを確認のうえ
+# 例外として追加する（例: !templates/notice_template.xlsx）
+
+# 音声・写真・画像の実データ
+*.wav
+*.mp3
+*.m4a
+*.flac
+*.ogg
+data/
+samples/
+real_data/
+
+# データベース・案件データ
+*.db
+*.sqlite
+*.sqlite3
+cases/
+output/
+exports/
+
+# --- AIモデル（サイズが大きいため） ---
+models/
+*.gguf
+*.bin
+*.safetensors
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+dist/
+build/
+*.egg-info/
+
+# --- エディタ・OS ---
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
