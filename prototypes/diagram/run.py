@@ -120,6 +120,7 @@ def run(case_id: str, text: str, client: OllamaClient, answers: dict | None, int
         expected: dict | None) -> dict:
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     print(f"\n=== {case_id}（{client.model}）===")
+    print("AIが事故の説明から位置関係を整理しています（2〜3分かかります。そのままお待ちください）…", flush=True)
     t = time.perf_counter()
     spec_a = extract_diagram(client, text)
     llm_s = time.perf_counter() - t
@@ -174,6 +175,7 @@ def main() -> int:
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     client = OllamaClient(model=args.model)
+    print(f"AIモデル（{args.model}）を読み込んでいます…", flush=True)
     client.warm_up()
     if args.excel:
         run("real_sample", read_excel_text(args.excel), client, None, args.interactive, None)
