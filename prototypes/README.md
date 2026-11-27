@@ -31,6 +31,10 @@ powershell -ExecutionPolicy Bypass -File prototypes\asr\make_test_audio.ps1 -Out
 
 合成音声は雑音がなく明瞭なので、実際の声より良い結果になる。実際の声での測定を必ず行う。
 
+**採用モデル（2026-11-28 決定）: `large-v3-turbo`＋用語登録。** 実際の声10文での文字誤り率は 6.0%。
+本番端末では、開発PCで録音した `data\asr_recordings`（正解文つき）をコピーし、
+`--bench --dir data\asr_recordings --models large-v3-turbo` で処理時間を測り直す。
+
 ## B. AIインタビュー
 
 ```powershell

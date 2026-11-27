@@ -47,6 +47,13 @@ accident-report-app — 事故報告アプリ。
 - 自作アプリの配布にはコード署名が必要になる見込み（Phase 5 の課題）
 - 開発PCは Core Ultra 7 258V・32GB で本番端末より速い。処理時間の測定値は参考値とし、ベンチマークは本番端末でも実行する
 
+## 技術選定の決定事項（2026-11-28）
+
+- 音声認識: **faster-whisper `large-v3-turbo`（CPU・int8）＋用語登録（`config/vocabulary/terms.txt` を initial_prompt に渡す）** を採用
+  - 根拠: 実際の声10文（内蔵マイク・室内）で文字誤り率 6.0%。small 9.4%、medium 8.3% より良い
+  - 1発話の処理は開発PCで最長約8秒。本番端末（i5-1235U）での測定はまだ
+  - 残っている誤認識: 「後退→交代」（2回の検証で続けて発生）、「カウンターウェイト→アウターウェイト」。確認画面で修正する前提で、用語の後処理は Phase 2 で検討する
+
 ## ローカル環境
 
 - 暫定テンプレート: `templates/notice_template.xlsx`、`templates/detail_template.xlsx`（Git 対象外）。`python tools/make_templates.py 事故報告書.xlsx` で再作成できる
