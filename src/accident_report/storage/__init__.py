@@ -7,4 +7,5 @@ from accident_report.storage.db import (  # noqa: F401
     Store,
     audio_dir,
     delete_audio,
+    diagram_dir,
 )

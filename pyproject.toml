@@ -15,6 +15,7 @@ dependencies = [
     "faster-whisper>=1.1",
     "PySide6>=6.7",
     "openpyxl>=3.1",
+    "pillow>=10",  # Excel に図（PNG）を貼るため。SAC 有効環境で読み込めることを確認済み
 ]
 
 [project.optional-dependencies]

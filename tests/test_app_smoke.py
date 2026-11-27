@@ -14,6 +14,9 @@ from accident_report.export import notice_excel  # noqa: E402
 from accident_report.storage import STATUS_EXPORTED, STATUS_INTERVIEW, Store  # noqa: E402
 from accident_report.writing.notice import NoticeDraft  # noqa: E402
 
+from accident_report.models.scene import DiagramSpec  # noqa: E402
+
+from test_diagram_questions import spec_with_gaps  # noqa: E402
 from test_engine import fact, result  # noqa: E402
 
 pytestmark = pytest.mark.skipif(not notice_excel.TEMPLATE.exists(), reason="暫定テンプレートがない（Git対象外）")
@@ -27,6 +30,8 @@ class FakeClient:
         pass
 
     def generate_json(self, system, prompt, schema, max_tokens=1024):
+        if schema is DiagramSpec:
+            return spec_with_gaps()
         return NoticeDraft.model_validate({
             "involved_persons": ["私"], "work_category": "運搬（車輌・フォーク）",
             "overview": [{"text": "フォークリフトで後退中、シャッターの柱に接触した。", "evidence": ["A001"]}],
@@ -56,6 +61,7 @@ def window(tmp_path, monkeypatch):
     monkeypatch.setattr(notice_excel, "OUTPUT_DIR", tmp_path / "output")
     monkeypatch.setattr("accident_report.app.review_page.OUTPUT_DIR", tmp_path / "output")
     monkeypatch.setattr("accident_report.app.interview_page.audio_dir", lambda cid: tmp_path / "audio" / str(cid))
+    monkeypatch.setattr("accident_report.app.diagram_page.diagram_dir", lambda cid: tmp_path / "diagrams" / str(cid))
     monkeypatch.setattr(app_main, "Speaker", FakeSpeaker)
     monkeypatch.setattr(Services, "asr", lambda self: None)
     monkeypatch.setattr(Services, "check_ollama", lambda self: None)
@@ -103,3 +109,33 @@ def test_interview_resume_review_and_export(window):
     ws = openpyxl.load_workbook(row.output_path).worksheets[0]
     assert ws["F3"].value == "山田" and ws["E5"].value == "運搬（車輌・フォーク）"
     assert "【未確認事項】" in ws["B7"].value
+
+
+def test_diagram_step_answers_questions_and_figure_goes_into_excel(window):
+    app, win, store = window
+    win.start_page.user.setCurrentText("山田")
+    win.start_page.start_new()
+    page = win.interview_page
+    page.answer.setPlainText("きのう14時ごろ、第一工場の搬出口でフォークリフトが柱に当たりました")
+    page.submit()
+    wait(app)
+    page.finish_early()
+    wait(app)
+    review = win.review_page
+    assert "まだ作っていません" in review.fig_status.text()
+    review.open_diagram()
+    wait(app)
+    dpage = win.diagram_page
+    assert win.stack.currentWidget() is dpage and dpage.question is not None
+    for _ in range(20):  # 追加の質問に最初の選択肢で答えていく
+        if dpage.question is None:
+            break
+        dpage.choose(dpage.question.choices[0])
+    assert dpage.question is None and dpage.image.pixmap() is not None
+    dpage.accept()
+    assert win.stack.currentWidget() is review and "報告書に貼ります" in review.fig_status.text()
+    review.export()
+    row = store.load_case(review.case_id)
+    assert row.diagram["accepted"] and row.diagram["answers"]
+    ws = openpyxl.load_workbook(row.output_path).worksheets[0]
+    assert len(ws._images) == 1

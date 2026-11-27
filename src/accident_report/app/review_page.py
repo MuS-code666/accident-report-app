@@ -10,7 +10,10 @@ from dataclasses import asdict
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QTimer
+from pathlib import Path
+
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QComboBox,
     QFormLayout,
@@ -98,6 +101,21 @@ class ReviewPage(QWidget):
         form.addRow("発生原因", self.cause)
         form.addRow("対策案", self.countermeasure)
         form.addRow("未確認事項", self.unresolved)
+        fig_row = QHBoxLayout()
+        self.fig_thumb = QLabel("")
+        self.fig_thumb.setFixedHeight(130)
+        self.fig_thumb.setMinimumWidth(10)
+        self.fig_status = QLabel("")
+        self.fig_status.setWordWrap(True)
+        self.fig_btn = QPushButton("事故状況図を作る")
+        self.fig_btn.clicked.connect(self.open_diagram)
+        fig_col = QVBoxLayout()
+        fig_col.addWidget(self.fig_status)
+        fig_col.addWidget(self.fig_btn)
+        fig_col.addStretch()
+        fig_row.addWidget(self.fig_thumb)
+        fig_row.addLayout(fig_col, 1)
+        form.addRow("事故状況図", fig_row)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setWidget(form_w)
@@ -133,14 +151,43 @@ class ReviewPage(QWidget):
         self._elapsed = 0
 
     # ---- 開く ----
-    def open(self, case_id: int, engine: InterviewEngine, reporter: str, saved: dict | None) -> None:
+    def open(self, case_id: int, engine: InterviewEngine, reporter: str, saved: dict | None,
+             diagram: dict | None = None) -> None:
         self.case_id, self.engine, self.reporter = case_id, engine, reporter
         self.saved = saved or {}
+        self.diagram = diagram or {}
         self._show_record()
+        self._show_figure()
         if self.saved.get("form"):
             self._fill(NoticeForm(**self.saved["form"]), self.saved.get("issues", []))
         else:
             self.generate()
+
+    def _figures(self) -> tuple[Path | None, Path | None]:
+        """報告書に貼る図（利用者が「使う」を選んだ図だけ）。"""
+        d = self.diagram
+        if not d.get("accepted") or not d.get("main_png") or not Path(d["main_png"]).exists():
+            return None, None
+        extra = Path(d["extra_png"]) if d.get("extra_png") and Path(d["extra_png"]).exists() else None
+        return Path(d["main_png"]), extra
+
+    def _show_figure(self) -> None:
+        main, extra = self._figures()
+        d = self.diagram
+        if main:
+            pix = QPixmap(str(main))
+            self.fig_thumb.setPixmap(pix.scaledToHeight(130, Qt.TransformationMode.SmoothTransformation))
+            self.fig_status.setText("報告書に貼ります。" + ("場面が3つ以上あるため、全場面の図を別紙にも載せます。" if extra else ""))
+            self.fig_btn.setText("事故状況図を直す")
+        else:
+            self.fig_thumb.clear()
+            self.fig_status.setText("作成済み（報告書には使わない）" if d.get("spec") else
+                                    "まだ作っていません。図がない場合、Excel の略図欄は手書き用に空けます。")
+            self.fig_btn.setText("事故状況図を直す" if d.get("spec") else "事故状況図を作る")
+
+    def open_diagram(self) -> None:
+        self._save_form()
+        self.win.show_diagram(self.case_id)
 
     def _show_record(self) -> None:
         html = []
@@ -223,7 +270,8 @@ class ReviewPage(QWidget):
             return
         path = OUTPUT_DIR / f"事故報告_通知用_{datetime.now():%Y%m%d-%H%M}_{self.case_id:05d}.xlsx"
         try:
-            path = write_notice(form, path)
+            figure, extra = self._figures()
+            path = write_notice(form, path, figure=figure, extra_figure=extra)
         except PermissionError:
             QMessageBox.warning(self, "出力", "同じ名前のファイルがExcelで開かれています。閉じてからもう一度押してください。")
             return
@@ -248,7 +296,7 @@ class ReviewPage(QWidget):
 
     # ---- 共通 ----
     def _set_busy(self, busy: bool) -> None:
-        for w in (self.back_btn, self.regen_btn, self.save_btn, self.export_btn):
+        for w in (self.back_btn, self.regen_btn, self.save_btn, self.export_btn, self.fig_btn):
             w.setEnabled(not busy)
         self._elapsed = 0
         if busy:

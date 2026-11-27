@@ -33,15 +33,27 @@ def find_questions(spec: DiagramSpec, layouts: list[SceneLayout]) -> list[Drawin
     label = lambda eid: spec.entity(eid).label if spec.entity(eid) else eid  # noqa: E731
     anchor = spec.scenes[0].anchor if spec.scenes else None
 
+    # 後で「いまの図では〜」と方向を確かめる物（接触した相手・誘導員）と中心の組み合わせは、
+    # 基準や距離を別に聞かない（確認の質問で置き換わるため）
+    keys = {c.target for sc in spec.scenes for c in sc.contacts if c.target != anchor}
+    keys |= {e.id for e in spec.entities if e.kind == "誘導員"}
+    confirmed = lambda rel: anchor is not None and {rel.subject, rel.reference} in (  # noqa: E731
+        {k, anchor} for k in keys)
+
     # 1. 左右・前後の基準が分からない位置関係
     for scene in spec.scenes:
         for rel in scene.relations:
-            if rel.frame == "不明":
-                choices = [f"{label(rel.reference)}の向き（運転席から見て）", "図の上（工場の図面の向き）", DONT_KNOW]
+            if rel.frame == "不明" and not confirmed(rel):
+                ref = spec.entity(rel.reference)
+                # 基準が門扉・柱などの動かない物なら、その物に「向き」はないので、中心の重機・車両の運転席から見た向きを聞く。
+                # 図は中心の重機・車両の前を上にして描くため、その答えは「図の上」基準と同じになる。
+                fixed_ref = bool(ref and ref.fixed and anchor and anchor != rel.reference)
+                choices = [f"{label(anchor)}の運転席から見て" if fixed_ref else f"{label(rel.reference)}の向き（運転席から見て）",
+                           "図の上（工場の図面の向き）", DONT_KNOW]
 
-                def apply(c, rel=rel, choices=choices):
+                def apply(c, rel=rel, choices=choices, fixed_ref=fixed_ref):
                     if c == choices[0]:
-                        rel.frame, rel.certainty = "基準物の向き", "確定"
+                        rel.frame, rel.certainty = ("図の上" if fixed_ref else "基準物の向き"), "確定"
                     elif c == choices[1]:
                         rel.frame, rel.certainty = "図の上", "確定"
 
@@ -60,7 +72,7 @@ def find_questions(spec: DiagramSpec, layouts: list[SceneLayout]) -> list[Drawin
     # 2. 距離が分からない位置関係
     for scene in spec.scenes:
         for rel in scene.relations:
-            if rel.distance == "不明":
+            if rel.distance == "不明" and not confirmed(rel):
                 choices = ["接していた", "近く（1m くらい）", "離れていた（数m）", DONT_KNOW]
                 mapping = {choices[0]: "接触", choices[1]: "近い", choices[2]: "離れている"}
 
@@ -147,6 +159,9 @@ def find_questions(spec: DiagramSpec, layouts: list[SceneLayout]) -> list[Drawin
         cs = contact_scenes[0]
         idx = spec.scenes.index(cs)
         for c in cs.contacts:
+            ent = spec.entity(c.entity)
+            if ent is None or ent.fixed:
+                continue  # 動かない物の動きは聞かない
             has_motion = any(m.entity == c.entity for s in spec.scenes[: idx + 1] for m in s.motions)
             if not has_motion:
                 choices = ["前進", "後退", "左旋回", "右旋回", "止まっていた", DONT_KNOW]

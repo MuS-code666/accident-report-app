@@ -80,6 +80,12 @@ def review_spec(spec: DiagramSpec, sentences: list[str]) -> DiagramSpec:
                 e.kind = "誘導員"
                 notes.append(f"{e.label} を誘導員にした")
 
+    # 誘導している言葉がないのに「誘導員」になっている人は、作業員に戻す
+    for e in spec.entities:
+        if e.kind == "誘導員" and not any(w in text for w in GUIDE_WORDS):
+            e.kind = "作業員"
+            notes.append(f"{e.label} は誘導の記述がないため作業員にした")
+
     # 図の中心（anchor）が人になっていたら、文中の言葉から重機・車両の種類に直す
     for eid in {sc.anchor for sc in spec.scenes}:
         e = spec.entity(eid)
@@ -128,6 +134,20 @@ def review_spec(spec: DiagramSpec, sentences: list[str]) -> DiagramSpec:
             if not ok and rel.certainty == "確定":
                 rel.certainty = "未確定"
                 notes.append(f"{rel.subject}→{rel.reference} は文中に根拠がないため未確定")
+
+    # 「固定物が重機に当たった」という逆向きの接触は、「重機が固定物に当たった」にそろえる
+    fixed = {e.id for e in spec.entities if e.fixed}
+    for scene in spec.scenes:
+        kept = []
+        for c in scene.contacts:
+            if c.entity in fixed and c.target not in fixed:
+                if any(k.entity == c.target and k.target == c.entity for k in scene.contacts):
+                    notes.append(f"{c.entity}→{c.target} の接触は重複のため削除")
+                    continue
+                c.entity, c.target, c.part = c.target, c.entity, "不明"
+                notes.append(f"{c.target}→{c.entity} の接触を、動く側からの接触に直した")
+            kept.append(c)
+        scene.contacts = kept
 
     # 接触は「事故発生時」の場面にだけ置く
     contact_scenes = [s for s in spec.scenes if s.phase == "事故発生時" and s.contacts]

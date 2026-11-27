@@ -55,3 +55,30 @@ def test_person_anchor_is_turned_into_machine():
     spec = review_spec(spec, number_sentences("・0.7重機でキャタピラーを出入口へ向けた。"))
     e = spec.entity("wl")
     assert e.kind == "油圧ショベル" and e.label == "油圧ショベル"
+
+
+def _spec(entities, contacts):
+    from accident_report.models.scene import DiagramSpec
+    return DiagramSpec.model_validate({"entities": entities, "scenes": [
+        {"scene_id": "s1", "phase": "事故発生時", "anchor": "fl", "contacts": contacts}]})
+
+
+def test_bystander_without_guiding_words_is_not_a_guide():
+    from accident_report.diagram.extract import review_spec
+    spec = _spec([{"id": "fl", "kind": "フォークリフト", "label": "フォークリフト", "fixed": False},
+                  {"id": "t", "kind": "誘導員", "label": "田中さん", "fixed": False}], [])
+    review_spec(spec, ["フォークリフトで後退した。", "近くに田中さんがいました。"])
+    assert not any(e.kind == "誘導員" for e in spec.entities)  # 作業員に戻り、図に関係しなければ描かない
+
+
+def test_reverse_contact_from_fixed_object_is_merged():
+    from accident_report.diagram.extract import review_spec
+    from accident_report.diagram.layout import layout
+    from accident_report.diagram.questions import find_questions
+    spec = _spec([{"id": "fl", "kind": "フォークリフト", "label": "フォークリフト", "fixed": False},
+                  {"id": "gate", "kind": "門扉", "label": "門扉", "fixed": True}],
+                 [{"entity": "fl", "part": "右後", "target": "gate", "certainty": "確定"},
+                  {"entity": "gate", "part": "左側", "target": "fl", "certainty": "確定"}])
+    review_spec(spec, ["フォークリフトの右後ろが門扉に当たった。"])
+    assert [(c.entity, c.target) for c in spec.scenes[0].contacts] == [("fl", "gate")]
+    assert not any(q.qid == "motion:gate" for q in find_questions(spec, layout(spec)))

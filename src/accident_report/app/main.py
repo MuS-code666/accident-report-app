@@ -13,6 +13,7 @@ os.environ.setdefault("HF_HUB_OFFLINE", "1")  # 起動後はネットワーク�
 
 from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox, QStackedWidget  # noqa: E402
 
+from accident_report.app.diagram_page import DiagramPage  # noqa: E402
 from accident_report.app.interview_page import InterviewPage  # noqa: E402
 from accident_report.app.review_page import ReviewPage  # noqa: E402
 from accident_report.app.services import Services, Speaker, run_task  # noqa: E402
@@ -37,7 +38,8 @@ class MainWindow(QMainWindow):
         self.start_page = StartPage(self)
         self.interview_page = InterviewPage(self)
         self.review_page = ReviewPage(self)
-        for p in (self.start_page, self.interview_page, self.review_page):
+        self.diagram_page = DiagramPage(self)
+        for p in (self.start_page, self.interview_page, self.review_page, self.diagram_page):
             self.stack.addWidget(p)
         self.show_start()
         # 音声認識モデルは読み込みに時間がかかるので、起動直後に裏で読み込んでおく
@@ -76,7 +78,12 @@ class MainWindow(QMainWindow):
         self.speaker.stop()
         row = self.store.load_case(case_id)
         self.stack.setCurrentWidget(self.review_page)
-        self.review_page.open(case_id, self._engine(row.engine), row.reporter, row.draft)
+        self.review_page.open(case_id, self._engine(row.engine), row.reporter, row.draft, row.diagram)
+
+    def show_diagram(self, case_id: int) -> None:
+        row = self.store.load_case(case_id)
+        self.stack.setCurrentWidget(self.diagram_page)
+        self.diagram_page.open(case_id, self._engine(row.engine), row.diagram)
 
     def open_settings(self) -> None:
         SettingsDialog(self.store, self).exec()

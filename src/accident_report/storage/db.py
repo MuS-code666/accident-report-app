@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS cases (
     title TEXT NOT NULL DEFAULT '',
     engine_json TEXT,
     draft_json TEXT,
+    diagram_json TEXT,
     output_path TEXT
 );
 """
@@ -73,6 +74,7 @@ class CaseRow:
     engine: dict | None
     draft: dict | None
     output_path: str | None
+    diagram: dict | None = None
 
 
 def _locked(fn):
@@ -92,6 +94,9 @@ class Store:
         self._lock = threading.RLock()
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript(SCHEMA)
+        cols = {r["name"] for r in self.conn.execute("PRAGMA table_info(cases)")}
+        if "diagram_json" not in cols:  # 古いDBに作図の列を足す
+            self.conn.execute("ALTER TABLE cases ADD COLUMN diagram_json TEXT")
         for k, v in DEFAULT_SETTINGS.items():
             self.conn.execute("INSERT OR IGNORE INTO settings(key, value) VALUES (?, ?)", (k, v))
         self.conn.commit()
@@ -157,7 +162,8 @@ class Store:
 
     @_locked
     def save_case(self, case_id: int, *, engine: dict | None = None, draft: dict | None = None,
-                  status: str | None = None, title: str | None = None, output_path: str | None = None) -> None:
+                  diagram: dict | None = None, status: str | None = None, title: str | None = None,
+                  output_path: str | None = None) -> None:
         fields, values = ["updated_at = ?"], [datetime.now().isoformat(timespec="seconds")]
         if engine is not None:
             fields.append("engine_json = ?")
@@ -165,6 +171,9 @@ class Store:
         if draft is not None:
             fields.append("draft_json = ?")
             values.append(json.dumps(draft, ensure_ascii=False))
+        if diagram is not None:
+            fields.append("diagram_json = ?")
+            values.append(json.dumps(diagram, ensure_ascii=False))
         for name, v in (("status", status), ("title", title), ("output_path", output_path)):
             if v is not None:
                 fields.append(f"{name} = ?")
@@ -192,6 +201,7 @@ class Store:
         self.conn.execute("DELETE FROM cases WHERE id = ?", (case_id,))
         self.conn.commit()
         delete_audio(case_id, self.path.parent)
+        shutil.rmtree(diagram_dir(case_id, self.path.parent), ignore_errors=True)
 
     @staticmethod
     def _row(r: sqlite3.Row) -> CaseRow:
@@ -201,13 +211,18 @@ class Store:
             status=r["status"], title=r["title"],
             engine=json.loads(r["engine_json"]) if r["engine_json"] else None,
             draft=json.loads(r["draft_json"]) if r["draft_json"] else None,
-            output_path=r["output_path"])
+            output_path=r["output_path"],
+            diagram=json.loads(r["diagram_json"]) if r["diagram_json"] else None)
 
 
 # ---- 録音ファイル ----
 
 def audio_dir(case_id: int, data_dir: Path = DATA_DIR) -> Path:
     return data_dir / "audio" / f"case{case_id:05d}"
+
+
+def diagram_dir(case_id: int, data_dir: Path = DATA_DIR) -> Path:
+    return data_dir / "diagrams" / f"case{case_id:05d}"
 
 
 def delete_audio(case_id: int, data_dir: Path = DATA_DIR) -> bool:

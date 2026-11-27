@@ -11,10 +11,13 @@ def spec_with_gaps():
             {"id": "ex", "kind": "油圧ショベル", "label": "重機", "fixed": False},
             {"id": "pillar", "kind": "柱", "label": "門の柱", "fixed": True},
             {"id": "bucket", "kind": "バケツ", "label": "ポリバケツ", "fixed": False},
+            {"id": "wall", "kind": "壁", "label": "壁", "fixed": True},
         ],
         "scenes": [
             {"scene_id": "s1", "phase": "事故直前", "anchor": "ex",
              "relations": [{"subject": "pillar", "reference": "ex", "direction": "右", "frame": "不明",
+                            "distance": "不明", "certainty": "未確定"},
+                           {"subject": "wall", "reference": "ex", "direction": "左", "frame": "不明",
                             "distance": "不明", "certainty": "未確定"}]},
             {"scene_id": "s2", "phase": "事故発生時", "anchor": "ex",
              "contacts": [{"entity": "ex", "part": "不明", "target": "pillar", "certainty": "未確定"}]},
@@ -33,7 +36,7 @@ def test_answers_update_spec_and_remove_questions():
     for q in find_questions(spec, layout(spec)):
         if not q.qid.startswith("confirm:"):
             q.apply(q.choices[0])
-    rel = next(r for r in spec.scenes[0].relations if r.subject == "pillar")
+    rel = next(r for r in spec.scenes[0].relations if r.subject == "wall")
     assert rel.frame == "基準物の向き" and rel.distance == "接触"
     assert spec.scenes[1].contacts[0].part == "バケット"
     assert any(m.entity == "ex" for m in spec.scenes[0].motions)
@@ -54,6 +57,13 @@ def test_dont_know_leaves_item_unconfirmed():
     spec = spec_with_gaps()
     for q in find_questions(spec, layout(spec)):
         q.apply(DONT_KNOW)
-    assert spec.scenes[0].relations[0].frame == "不明"
+    assert all(r.frame == "不明" for r in spec.scenes[0].relations)
     assert spec.scenes[1].contacts[0].part == "不明"
     assert "bucket" in layout(spec)[0].unplaced  # 分からない物は勝手に置かない
+
+
+def test_contact_target_is_confirmed_instead_of_frame_and_distance():
+    spec = spec_with_gaps()
+    qids = [q.qid for q in find_questions(spec, layout(spec))]
+    assert "confirm:pillar" in qids
+    assert not any(q.startswith(("frame:pillar", "dist:pillar")) for q in qids)
