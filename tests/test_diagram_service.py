@@ -60,3 +60,25 @@ def test_figures_are_pasted_into_notice(tmp_path):
     assert "B7:I11" in {str(m) for m in ws.merged_cells.ranges}  # 文章が短いので図を大きくする
     assert len(ws._images) == 1
     assert "別紙（事故状況図）" in wb.sheetnames and len(wb["別紙（事故状況図）"]._images) == 1
+
+
+def test_manual_moves_and_hidden_objects_are_applied_on_top_of_auto_layout():
+    state = service.DiagramState(spec=spec_with_gaps())
+    auto = service.layout(state.spec)
+    sid0, sid1 = state.spec.scenes[0].scene_id, state.spec.scenes[1].scene_id
+    state.manual[sid0] = {"bucket": service.ManualPose(x=3, y=-2, heading=90)}  # 位置不明だった物を手で置く
+    state.hidden[sid1] = ["wall"]
+    lays = service.final_layouts(state)
+    assert "bucket" in auto[0].unplaced and "bucket" not in lays[0].unplaced
+    p = lays[0].poses["bucket"]
+    assert (p.x, p.y, p.heading) == (3, -2, 90)
+    assert "wall" not in lays[1].poses and "wall" in lays[0].poses
+
+
+def test_contact_mark_moves_with_the_vehicle():
+    state = service.DiagramState(spec=spec_with_gaps())
+    auto = service.layout(state.spec)[1]
+    ex = auto.poses["ex"]
+    state.manual[state.spec.scenes[1].scene_id] = {"ex": service.ManualPose(x=ex.x + 1, y=ex.y, heading=ex.heading)}
+    lay = service.final_layouts(state)[1]
+    assert [(round(x - 1, 6), y) for x, y in lay.contact_points] == [(round(x, 6), y) for x, y in auto.contact_points]

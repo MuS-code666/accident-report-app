@@ -11,7 +11,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 
 from accident_report.diagram.extract import extract_diagram
-from accident_report.diagram.layout import SceneLayout, layout
+from accident_report.diagram.layout import Pose, SceneLayout, layout
 from accident_report.diagram.questions import DrawingQuestion, find_questions
 from accident_report.diagram.render import combined_svg, render_scenes, svg_to_png
 from accident_report.interview.engine import InterviewEngine
@@ -30,9 +30,19 @@ class DrawingAnswer(BaseModel):
     choice: str
 
 
+class ManualPose(BaseModel):
+    """利用者が手で直した位置と向き（m・度。0 = 図の上、時計回り）。"""
+    x: float
+    y: float
+    heading: float
+
+
 class DiagramState(BaseModel):
     spec: DiagramSpec
     answers: list[DrawingAnswer] = Field(default_factory=list)
+    # 手で直した位置（場面ID → 物のID → 位置）と、図から外した物（場面ID → 物のID）
+    manual: dict[str, dict[str, ManualPose]] = Field(default_factory=dict)
+    hidden: dict[str, list[str]] = Field(default_factory=dict)
     main_png: str | None = None  # Excel の図の枠に貼る図
     extra_png: str | None = None  # 3場面以上のとき、別紙に貼る全場面の図
     accepted: bool = False  # 利用者が「この図を使う」を押した
@@ -70,6 +80,28 @@ def answer(state: DiagramState, question: DrawingQuestion, choice: str) -> None:
     state.answers.append(DrawingAnswer(qid=question.qid, question=question.text, choice=choice))
 
 
+def final_layouts(state: DiagramState) -> list[SceneLayout]:
+    """自動レイアウトに、利用者の手直し（移動・回転・図から外す）を重ねる。"""
+    lays = layout(state.spec)
+    for lay in lays:
+        sid = lay.scene.scene_id
+        movers = {c.entity for c in lay.scene.contacts}
+        for eid, mp in state.manual.get(sid, {}).items():
+            old = lay.poses.get(eid)
+            if old is not None and eid in movers:
+                # 接触の印は、ぶつかった側と一緒に動かす
+                dx, dy = mp.x - old.x, mp.y - old.y
+                lay.contact_points = [(x + dx, y + dy) for x, y in lay.contact_points]
+            lay.poses[eid] = Pose(mp.x, mp.y, mp.heading, certain=True)
+            if eid in lay.unplaced:
+                lay.unplaced.remove(eid)
+        for eid in state.hidden.get(sid, []):
+            lay.poses.pop(eid, None)
+            if eid in lay.unplaced:
+                lay.unplaced.remove(eid)
+    return lays
+
+
 def excel_scenes(layouts: list[SceneLayout]) -> list[int]:
     """Excel の枠に入れる場面: 2場面まではすべて。3場面以上は「事故発生時」とその直前。"""
     if len(layouts) <= EXCEL_MAX_PANELS:
@@ -82,7 +114,7 @@ def excel_scenes(layouts: list[SceneLayout]) -> list[int]:
 def render(state: DiagramState, out_dir: Path, name: str) -> tuple[Path, Path | None, list[str]]:
     """図を描いて PNG に保存する。(Excel用の図, 別紙用の図 or None, 警告) を返す。"""
     out_dir.mkdir(parents=True, exist_ok=True)
-    lays = layout(state.spec)
+    lays = final_layouts(state)
     panels = render_scenes(state.spec, lays)
     main = out_dir / f"{name}_main.png"
     svg_to_png(combined_svg([panels[i] for i in excel_scenes(lays)]), main)

@@ -139,3 +139,21 @@ def test_diagram_step_answers_questions_and_figure_goes_into_excel(window):
     assert row.diagram["accepted"] and row.diagram["answers"]
     ws = openpyxl.load_workbook(row.output_path).worksheets[0]
     assert len(ws._images) == 1
+
+
+def test_diagram_editor_records_moves_rotation_and_hidden(window):
+    from accident_report.app.diagram_editor import DiagramEditor
+    from accident_report.diagram import service
+    state = service.DiagramState(spec=spec_with_gaps())
+    ed = DiagramEditor(state)
+    items = ed.items[0]
+    x, y = items["ex"].center_m()
+    items["ex"].place(x + 2, y, 30)  # 重機を右へ2m動かして30度回す
+    items["pillar"].setSelected(True)
+    ed._toggle_hidden()
+    ed._accept()
+    sid = state.spec.scenes[0].scene_id
+    mp = state.manual[sid]["ex"]
+    assert abs(mp.x - (x + 2)) < 0.01 and mp.heading == 30
+    assert state.hidden[sid] == ["pillar"]
+    assert "wall" not in state.manual[sid]  # 動かしていない物は記録しない

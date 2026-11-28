@@ -85,12 +85,14 @@ class DiagramPage(QWidget):
         self.back_btn.clicked.connect(self.back)
         self.regen_btn = QPushButton("図を最初から作り直す")
         self.regen_btn.clicked.connect(self.generate)
+        self.edit_btn = QPushButton("図を手で直す")
+        self.edit_btn.clicked.connect(self.edit)
         self.skip_btn = QPushButton("図を報告書に使わない")
         self.skip_btn.clicked.connect(self.skip)
         self.use_btn = QPushButton("この図を報告書に使う")
         self.use_btn.setObjectName("primary")
         self.use_btn.clicked.connect(self.accept)
-        for b in (self.back_btn, self.regen_btn, self.skip_btn):
+        for b in (self.back_btn, self.regen_btn, self.edit_btn, self.skip_btn):
             row.addWidget(b)
         row.addStretch()
         row.addWidget(self.use_btn)
@@ -189,6 +191,14 @@ class DiagramPage(QWidget):
         self._redraw()
 
     # ---- ボタン ----
+    def edit(self) -> None:
+        if self.state is None:
+            return
+        from accident_report.app.diagram_editor import DiagramEditor
+
+        if DiagramEditor(self.state, self).exec():
+            self._redraw()
+
     def accept(self) -> None:
         if self.state is None:
             return
@@ -211,7 +221,7 @@ class DiagramPage(QWidget):
         self.win.store.save_case(self.case_id, diagram=self.state.model_dump(mode="json"))
 
     def _set_busy(self, busy: bool) -> None:
-        for w in (self.back_btn, self.regen_btn, self.skip_btn, self.use_btn, self.choices):
+        for w in (self.back_btn, self.regen_btn, self.edit_btn, self.skip_btn, self.use_btn, self.choices):
             w.setEnabled(not busy)
         self._elapsed = 0
         if busy:
