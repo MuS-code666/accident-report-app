@@ -167,6 +167,10 @@ _ENDINGS = [
 ]
 _ENDINGS = [(re.compile(p), r) for p, r in _ENDINGS]
 
+# 「〜していた」を「〜中」にしてよい動作の言葉
+ACTION_NOUNS = ("運転", "作業", "後退", "前進", "旋回", "移動", "走行", "清掃", "点検", "運搬", "操作", "待機",
+                "誘導", "投入", "選別", "破砕", "積込", "積み込み", "荷下ろし", "荷卸", "整理", "修理", "給油", "巡回")
+
 _STATE = re.compile(r"([てで])(?:い|おり)(?:ました|た)。?$")  # 「置かれていた」→「置かれていた状態」（名詞＋するで直せないとき）
 
 NOT_TAIGEN = re.compile(r"(?:です|ます|ました|でした|ません|た|だ|る)。?$")
@@ -197,7 +201,12 @@ def to_taigen(text: str) -> str:
     new = _ending(t)
     if new != t:
         return new
-    for pat, repl in ((_SURU_ONGOING, "中。"), (_SURU_DONE, "。"), (_STATE, r"\1いた状態。")):
+    m = _SURU_ONGOING.search(t)
+    if m:
+        # 「運転していた」→「運転中」は動作のときだけ。「不足していた」などの状態は「不足」にする
+        noun = re.search(r"[一-鿿]+$", t[: m.start()]).group(0)
+        return t[: m.start()] + ("中。" if noun.endswith(ACTION_NOUNS) else "。")
+    for pat, repl in ((_SURU_DONE, "。"), (_STATE, r"\1いた状態。")):
         new = pat.sub(repl, t)
         if new != t:
             return new

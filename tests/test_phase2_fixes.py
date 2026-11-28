@@ -87,3 +87,8 @@ def test_exported_workbook_points_to_existing_sheet(tmp_path):
     out = write_notice(NoticeForm(overview=["扉に接触。"]), tmp_path / "o.xlsx")
     wb = openpyxl.load_workbook(out)
     assert all(v.firstSheet < len(wb.sheetnames) and v.activeTab < len(wb.sheetnames) for v in wb.views)
+
+
+def test_ongoing_state_is_not_turned_into_chu():
+    assert to_taigen("後方確認が不足していました。") == "後方確認が不足。"
+    assert to_taigen("資材を運搬していた。") == "資材を運搬中。"

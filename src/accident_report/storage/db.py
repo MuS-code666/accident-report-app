@@ -58,6 +58,8 @@ CREATE TABLE IF NOT EXISTS cases (
     engine_json TEXT,
     draft_json TEXT,
     diagram_json TEXT,
+    detail_json TEXT,
+    detail_output_path TEXT,
     output_path TEXT
 );
 """
@@ -75,6 +77,8 @@ class CaseRow:
     draft: dict | None
     output_path: str | None
     diagram: dict | None = None
+    detail: dict | None = None
+    detail_output_path: str | None = None
 
 
 def _locked(fn):
@@ -95,8 +99,9 @@ class Store:
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript(SCHEMA)
         cols = {r["name"] for r in self.conn.execute("PRAGMA table_info(cases)")}
-        if "diagram_json" not in cols:  # 古いDBに作図の列を足す
-            self.conn.execute("ALTER TABLE cases ADD COLUMN diagram_json TEXT")
+        for col in ("diagram_json", "detail_json", "detail_output_path"):  # 古いDBに後から増えた列を足す
+            if col not in cols:
+                self.conn.execute(f"ALTER TABLE cases ADD COLUMN {col} TEXT")
         for k, v in DEFAULT_SETTINGS.items():
             self.conn.execute("INSERT OR IGNORE INTO settings(key, value) VALUES (?, ?)", (k, v))
         self.conn.commit()
@@ -162,8 +167,9 @@ class Store:
 
     @_locked
     def save_case(self, case_id: int, *, engine: dict | None = None, draft: dict | None = None,
-                  diagram: dict | None = None, status: str | None = None, title: str | None = None,
-                  output_path: str | None = None) -> None:
+                  diagram: dict | None = None, detail: dict | None = None, status: str | None = None,
+                  title: str | None = None, output_path: str | None = None,
+                  detail_output_path: str | None = None) -> None:
         fields, values = ["updated_at = ?"], [datetime.now().isoformat(timespec="seconds")]
         if engine is not None:
             fields.append("engine_json = ?")
@@ -174,7 +180,11 @@ class Store:
         if diagram is not None:
             fields.append("diagram_json = ?")
             values.append(json.dumps(diagram, ensure_ascii=False))
-        for name, v in (("status", status), ("title", title), ("output_path", output_path)):
+        if detail is not None:
+            fields.append("detail_json = ?")
+            values.append(json.dumps(detail, ensure_ascii=False))
+        for name, v in (("status", status), ("title", title), ("output_path", output_path),
+                        ("detail_output_path", detail_output_path)):
             if v is not None:
                 fields.append(f"{name} = ?")
                 values.append(v)
@@ -212,7 +222,9 @@ class Store:
             engine=json.loads(r["engine_json"]) if r["engine_json"] else None,
             draft=json.loads(r["draft_json"]) if r["draft_json"] else None,
             output_path=r["output_path"],
-            diagram=json.loads(r["diagram_json"]) if r["diagram_json"] else None)
+            diagram=json.loads(r["diagram_json"]) if r["diagram_json"] else None,
+            detail=json.loads(r["detail_json"]) if r["detail_json"] else None,
+            detail_output_path=r["detail_output_path"])
 
 
 # ---- 録音ファイル ----
