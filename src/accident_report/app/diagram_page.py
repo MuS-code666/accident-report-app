@@ -42,6 +42,7 @@ class DiagramPage(QWidget):
         self.engine: InterviewEngine | None = None
         self.state: service.DiagramState | None = None
         self.question = None
+        self.return_to = "review"  # 図を作り終えたら戻る画面（review / detail）
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(24, 16, 24, 16)
@@ -104,8 +105,8 @@ class DiagramPage(QWidget):
         self._elapsed = 0
 
     # ---- 開く ----
-    def open(self, case_id: int, engine: InterviewEngine, saved: dict | None) -> None:
-        self.case_id, self.engine = case_id, engine
+    def open(self, case_id: int, engine: InterviewEngine, saved: dict | None, return_to: str = "review") -> None:
+        self.case_id, self.engine, self.return_to = case_id, engine, return_to
         if saved and saved.get("spec"):
             self.state = service.DiagramState.model_validate(saved)
             self._redraw()
@@ -204,18 +205,24 @@ class DiagramPage(QWidget):
             return
         self.state.accepted = True
         self._save()
-        self.win.show_review(self.case_id)
+        self._leave()
 
     def skip(self) -> None:
         if self.state is not None:
             self.state.accepted = False
             self._save()
-        self.win.show_review(self.case_id)
+        self._leave()
 
     def back(self) -> None:
         if self.state is not None:
             self._save()
-        self.win.show_review(self.case_id)
+        self._leave()
+
+    def _leave(self) -> None:
+        if self.return_to == "detail":
+            self.win.show_detail(self.case_id)
+        else:
+            self.win.show_review(self.case_id)
 
     def _save(self) -> None:
         self.win.store.save_case(self.case_id, diagram=self.state.model_dump(mode="json"))

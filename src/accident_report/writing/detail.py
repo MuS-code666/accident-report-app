@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+import re
+
 from pydantic import BaseModel, Field
 
 from accident_report.interview.engine import InterviewEngine
@@ -64,7 +66,10 @@ def suggest(client: OllamaClient, engine: InterviewEngine, report: DetailReport
         if not ev:
             notes.append(f"根拠の回答がないため除外: {c.text}")
             continue
-        causes.append(CauseItem(category=c.category, text=to_taigen(c.text), evidence=ev, source="AI案"))
+        text = to_taigen(c.text)
+        if re.search(r"(禁止|徹底|実施|強化|設置|改善|見直し|教育)。?$", text):
+            notes.append(f"原因ではなく対策のような書き方です。確認してください: {text}")
+        causes.append(CauseItem(category=c.category, text=text, evidence=ev, source="AI案"))
     measures = [Measure(text=to_taigen(m.text), source="AI案") for m in out.measures]
     return causes, measures, notes
 

@@ -72,3 +72,11 @@ def test_write_detail_cells(tmp_path):
     assert ws["H32"].value == "2026年12月15日" and ws["B35"].value == "なし" and ws["B40"].value == "門扉は使用可能。"
     assert ws["H41"].value is None and ws["I41"].value is None and ws["J41"].value is None  # 承認欄は書かない
     assert ws["H40"].value == "社長"
+
+
+def test_cause_written_like_a_measure_is_flagged():
+    eng = engine_with("通路にフレコンが置いてありました")
+    client = FakeClient({"causes": [{"category": "作業方法・環境", "text": "通路への物品の仮置き禁止。", "evidence": ["A001"]}],
+                         "measures": []})
+    _, _, notes = suggest(client, eng, DetailReport())
+    assert any("対策のような書き方" in n for n in notes)

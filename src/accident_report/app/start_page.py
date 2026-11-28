@@ -63,13 +63,26 @@ class StartPage(QWidget):
         self.resume_btn.clicked.connect(self.resume)
         self.delete_btn = QPushButton("選んだ報告を削除")
         self.delete_btn.clicked.connect(self.delete)
+        self.detail_btn = QPushButton("選んだ報告の詳細報告（管理監督者）")
+        self.detail_btn.clicked.connect(self.open_detail)
         settings = QPushButton("設定（利用者・用語・その他）")
         settings.clicked.connect(self.win.open_settings)
         row2.addWidget(self.resume_btn)
+        row2.addWidget(self.detail_btn)
         row2.addWidget(self.delete_btn)
         row2.addStretch()
         row2.addWidget(settings)
         lay.addLayout(row2)
+
+        row3 = QHBoxLayout()
+        new_detail = QPushButton("詳細報告を新しく作る（聞き取りなし）")
+        new_detail.clicked.connect(self.start_detail_only)
+        measures = QPushButton("再発防止対策の進み具合")
+        measures.clicked.connect(self.win.open_measures)
+        row3.addWidget(new_detail)
+        row3.addWidget(measures)
+        row3.addStretch()
+        lay.addLayout(row3)
 
     def refresh(self) -> None:
         current = self.user.currentText()
@@ -79,7 +92,8 @@ class StartPage(QWidget):
             self.user.setCurrentText(current)
         self.cases.clear()
         for c in self.win.store.list_cases():
-            text = f"{c.updated_at:%m/%d %H:%M}　{c.status}　{c.reporter}　{c.title or '（内容未入力）'}"
+            detail = "　［詳細：出力済み］" if c.detail_output_path else ("　［詳細：作成中］" if c.detail else "")
+            text = f"{c.updated_at:%m/%d %H:%M}　{c.status}　{c.reporter}　{c.title or '（内容未入力）'}{detail}"
             item = QListWidgetItem(text)
             item.setData(Qt.ItemDataRole.UserRole, c.id)
             self.cases.addItem(item)
@@ -117,6 +131,16 @@ class StartPage(QWidget):
             QMessageBox.information(self, "報告", "一覧から報告を選んでください。")
             return None
         return int(item.data(Qt.ItemDataRole.UserRole))
+
+    def open_detail(self) -> None:
+        case_id = self._selected()
+        if case_id is not None and self._reporter():
+            self.win.show_detail(case_id)
+
+    def start_detail_only(self) -> None:
+        name = self._reporter()
+        if name:
+            self.win.start_detail_only(name)
 
     def resume(self) -> None:
         case_id = self._selected()

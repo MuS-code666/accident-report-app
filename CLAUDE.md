@@ -9,14 +9,14 @@ accident-report-app — 工場内事故の報告書を、AIの聞き取り（音
 - 起動: `start_app.bat`（中身は `.venv\Scripts\pythonw -m accident_report.app`）。Ollama を先に起動しておく
 - テスト: `.venv\Scripts\python -m pytest -q`（テンプレートが必要なテストは、`templates/` がなければスキップ）
 - `python` は標準の Python を指すので、必ず `.venv\Scripts\python` を使う
-- 進捗: Phase 1（技術検証）完了・合格基準は `prototypes/README.md`。Phase 2（基本機能）完了（2026-11-28）。Phase 3（作図）作業中
+- 進捗: Phase 1（技術検証）完了・合格基準は `prototypes/README.md`。Phase 2（基本機能）・Phase 3（作図）完了（2026-11-28）。Phase 4（詳細報告）作業中
 
 ## ディレクトリ構成
 
 - `src/accident_report/app/` 画面（開始・聞き取り・確認・設定）。重い処理は `services.run_task` で裏で動かす
 - `src/accident_report/interview/` 聞き取りの進行管理（Python側）と回答の抽出（LLM）
 - `src/accident_report/writing/` 通知用の文章生成と根拠チェック
-- `src/accident_report/export/` Excel 転記（`notice_excel.py`。転記位置はファイル冒頭に記載）
+- `src/accident_report/export/` Excel 転記（`notice_excel.py` 通知用、`detail_excel.py` 詳細報告。転記位置は各ファイル冒頭に記載）
 - `src/accident_report/storage/` SQLite（`data/app.db`）。案件・利用者・用語・設定。録音は `data/audio/`
 - `src/accident_report/diagram/` 作図。`service.py` がアプリ用の流れ（AI整理→選択式の追加質問→PNG）。図は `data/diagrams/`
 - `src/accident_report/speech/` 音声認識

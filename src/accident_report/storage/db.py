@@ -22,6 +22,7 @@ DEFAULT_DB = DATA_DIR / "app.db"
 STATUS_INTERVIEW = "聞き取り中"
 STATUS_REVIEW = "文章確認中"
 STATUS_EXPORTED = "出力済み"
+STATUS_DETAIL_ONLY = "詳細報告のみ"  # 聞き取りをせずに詳細報告から作った報告
 
 TERM_CATEGORIES = ["社員", "重機・車両", "設備", "場所", "その他"]
 
@@ -157,11 +158,11 @@ class Store:
 
     # ---- 案件 ----
     @_locked
-    def create_case(self, reporter: str) -> int:
+    def create_case(self, reporter: str, status: str = STATUS_INTERVIEW) -> int:
         now = datetime.now().isoformat(timespec="seconds")
         cur = self.conn.execute(
             "INSERT INTO cases(created_at, updated_at, reporter, status) VALUES (?, ?, ?, ?)",
-            (now, now, reporter, STATUS_INTERVIEW))
+            (now, now, reporter, status))
         self.conn.commit()
         return int(cur.lastrowid)
 
